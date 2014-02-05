@@ -20,3 +20,6 @@ Session.vim
 # Executables
 *.exe
 *.out
+
+# Bison intermediate files
+*.tab.*
