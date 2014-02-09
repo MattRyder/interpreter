@@ -1,16 +1,21 @@
 CC  	 		= gcc
-PARSEGEN  = bison
+BISON 	  = bison
+FLEX 			= flex
 
-CFLAGS 		= -o $(BUILD_DIR)/$(PARSER)
-PGFLAGS 	= --language=c++
+CFLAGS 		= -o $(BUILD_DIR)/$(EXE) -ly -ll
+BFLAGS 		= --language=c++
 
 BUILD_DIR = ../build
-PARSER 		= interpreter
+EXE 			= interpreter
 
-.PHONY: clean cleanall
+.PHONY: all clean
+
+all: parser
+
+lexer.y.cc: lexer.l
 
 parser.tab.cc: parser.y
-	$(PARSEGEN) $(PGFLAGS) $<
+	$(BISON) $(BFLAGS) $<
 
 parser: parser.tab.cc
 	$(CC) $(CFLAGS) $<
