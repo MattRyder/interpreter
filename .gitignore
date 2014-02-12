@@ -23,3 +23,4 @@ Session.vim
 
 # Bison intermediate files
 *.tab.*
+lex.yy.c
