@@ -2,20 +2,19 @@
 
 %{
 
-#define YYDEBUG 1
-#include ""
+#include "rbcore.h"
 
 %}
 
 /* token data types */
 %union {
-  NODE *node;
-  VALUE val;
-  IDENT id;
+  //NODE *node;
+  unsigned int val;
+  unsigned int id;
   int number;
 }
 
-/* ruby reserved keywords */
+/* ruby reserved keywords 
 %token BEGIN
        END
        ALIAS
@@ -48,28 +47,38 @@
        YIELD
 
 %token <id>    CONSTANT IDENTIFIER GLOBVAR INSTVAR
-/*%token <val>   INTEGER FLOAT STRING
+%token <val>   INTEGER FLOAT STRING
 
 %token <val>   literal numerical
 
 /* operator tokens */
-%token PLUS       /* + */
-%token MINUS      /* - */
-%token PWR        /* ** (implement ^ modification if time) */
+%token UPLUS              /* + */
+%token UMINUS             /* - */
+%token POWER              /* ** */
+%token LEQ                /* <= */
+%token GEQ                /* >= */
+%token COMP               /* <=> */
+
+%token SGL_EQUAL          /* = */
+%token DBL_EQUAL          /* == */
+%token NOT_EQUAL          /* != */
+%token ASSOCIATION        /* => */
+%token MATCH              /* =~ */
+%token NOT_MATCH          /* !~ */
+%token LSHIFT RSHIFT      /* << and >> */
+
+%token<id> ASSIGN_OP      /* *=, +=, -=, /= */
 
 /* operator associativity */
 %left '+' '-'
 %left '*' '/'
-%right PLUS MINUS PWR
+%right UPLUS UMINUS PWR
 
 %%
 
-newline:  /* empty */
-       | '\n'
-;
-
+dummy: /* empty */
+     | "\n" ;
 
 %%
 
-// TODO: Setup yylex using flex
 

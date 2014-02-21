@@ -3,37 +3,35 @@
 #ifndef NODE_H
 #define NODE_H
 
-struct gvar_entry *global_entry();
+//struct gvar_entry *global_entry();
 
-struct Node {
-  uint flags;
+typedef struct Node {
+  uint32 flags;
 
   union Value1 {
-    NODE *node;
-    //IDENT id; possibly unused
-    //IDENT *table; unused
+    struct Node *node;
+    //ID id; possibly unused
+    //ID *table; unused
     VALUE val;
     VALUE (*func)(); 
   };
 
   union Value2 {
-    NODE *node;
-    IDENT id;
-    VALUE val;
+    struct Node *node;
+    //ID id;
+    //VAL val;
     int arg_length;
   };
 
   union Value3 {
-    NODE *node;
-    IDENT id;
-    VALUE val;
-    struct *global_variable;
+    struct Node *node;
+    //ID id;
+    //VAL val;
+    //struct *gvar_entry;
     //int state; unused in mruby, possibly.
     int count;
   };
-};
-
-typedef struct Node NODE;
+} NODE;
 
 /* Node types for the AST */
 enum NODE_TYPES {
@@ -97,7 +95,7 @@ enum NODE_TYPES {
   NODE_SELF,          /* self reference                  */
   NODE_STRING,        /* string data type                */
   NODE_SUPER,         /* super keyword                   */
-  NODE_UNDEFINE       /* undefines a method              */
+  NODE_UNDEFINE,      /* undefines a method              */
   NODE_UNTIL,         /* until keyword                   */
   NODE_WHEN,          /* when keyword                    */
   NODE_VALIAS,        /* variable aliasing               */
@@ -108,3 +106,4 @@ enum NODE_TYPES {
   NODE_ZSUPER         /* super w/o keywords              */
 }
 
+#endif

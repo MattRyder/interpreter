@@ -1,24 +1,21 @@
-CC  	 		= gcc
-BISON 	  = bison
-FLEX 			= flex
+CFLAGS 		= -o $(BUILD_DIR)/$(EXE) -lfl -ly
 
-CFLAGS 		= -o $(BUILD_DIR)/$(EXE) -ly -ll
-BFLAGS 		= --language=c++
-
-BUILD_DIR = ../build
+BUILD_DIR = .
 EXE 			= interpreter
 
 .PHONY: all clean
 
 all: parser
 
-lexer.y.cc: lexer.l
+parser.tab.c parser.tab.h: parser.y
+	bison -d parser.y
 
-parser.tab.cc: parser.y
-	$(BISON) $(BFLAGS) $<
 
-parser: parser.tab.cc
-	$(CC) $(CFLAGS) $<
+lex.yy.c: lexer.l parser.tab.h
+	flex lexer.l
+
+parser: lex.yy.c parser.tab.c parser.tab.h
+	cc parser.tab.c lex.yy.c $(CFLAGS)
 
 clean:
-	rm -rfv $(BUILD_DIR)/*.o
+	rm -rfv $(BUILD_DIR)/$(EXE) lex.yy.c parser.tab.h parser.tab.c
