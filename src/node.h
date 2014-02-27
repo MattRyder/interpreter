@@ -3,38 +3,44 @@
 #ifndef NODE_H
 #define NODE_H
 
+#include "rbcore.h"
+
 //struct gvar_entry *global_entry();
 
-typedef struct Node {
+struct Node
+{
   uint32 flags;
 
-  union Value1 {
+  union 
+  {
     struct Node *node;
     //ID id; possibly unused
     //ID *table; unused
-    VALUE val;
-    VALUE (*func)(); 
-  };
+    VAL val;
+    VAL (*func)(); 
+  } Value1;
 
-  union Value2 {
+  union
+  {
     struct Node *node;
     //ID id;
     //VAL val;
     int arg_length;
-  };
+  } Value2;
 
-  union Value3 {
+  union
+  {
     struct Node *node;
     //ID id;
     //VAL val;
     //struct *gvar_entry;
     //int state; unused in mruby, possibly.
     int count;
-  };
-} NODE;
+  } Value3;
+};
 
 /* Node types for the AST */
-enum NODE_TYPES {
+enum NODETYPES {
   NODE_ALIAS,         /* alias method as...              */
   NODE_AND,           /* and                             */
   NODE_ARGS,          /* method arguments                */
@@ -104,6 +110,6 @@ enum NODE_TYPES {
   NODE_YIELD,         /* yield keyword                   */
   NODE_ZARRAY,        /* [] without elements             */
   NODE_ZSUPER         /* super w/o keywords              */
-}
+};
 
 #endif

@@ -24,3 +24,4 @@ Session.vim
 # Bison intermediate files
 *.tab.*
 lex.yy.c
+src/testfile.rb
