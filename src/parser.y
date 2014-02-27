@@ -2,52 +2,22 @@
 
 %{
 
-#include "rbcore.h"
+#include "node.h"
 
 %}
 
 /* token data types */
 %union {
-  //NODE *node;
+  struct Node *node;
   unsigned int val;
   unsigned int id;
   int number;
 }
 
-/* ruby reserved keywords 
-%token BEGIN
-       END
-       ALIAS
-       AND
-       CASE
-       CLASS
-       DEF
-       DEFINED
-       DO
-       ELSE
-       ELSIF
-       ENSURE
-       FOR
-       IF
-       IN
-       MODULE
-       NIL
-       NOT
-       OR
-       RESCUE
-       RETURN
-       SELF
-       SUPER
-       THEN
-       UNDEF
-       UNLESS
-       UNTIL
-       WHEN
-       WHILE
-       YIELD
-
+/* ruby reserved keywords  */
 %token <id>    CONSTANT IDENTIFIER GLOBVAR INSTVAR
 %token <val>   INTEGER FLOAT STRING
+%token <node>  DXSTRING
 
 %token <val>   literal numerical
 
@@ -58,6 +28,7 @@
 %token LEQ                /* <= */
 %token GEQ                /* >= */
 %token COMP               /* <=> */
+%token AND OR             /* &&, || */
 
 %token SGL_EQUAL          /* = */
 %token DBL_EQUAL          /* == */
