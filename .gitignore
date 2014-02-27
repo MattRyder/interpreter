@@ -20,8 +20,9 @@ Session.vim
 # Executables
 *.exe
 *.out
+interpreter
 
 # Bison intermediate files
 *.tab.*
 lex.yy.c
-src/testfile.rb
+testfile.rb
