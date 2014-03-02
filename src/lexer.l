@@ -7,15 +7,28 @@
 void fp();
 void p(char* type, char* text);
 
+unsigned char* buffer;
+
 %}
 
 %option yylineno noyywrap
 
 %x IN_BEGIN_CMNT
 %x IN_SGL_STRING
+%x IN_QUOTED_STRING
 %x IN_STRING
 %x IN_BACKTICK
 %x IN_NUMERIC
+%x IN_REGEX
+%x IN_GLOBAL
+
+IDENTIFIER          [$@]?[A-Za-z0-9_]+
+
+ARRAY_ASSIGN        "\[\]\="
+ARRAY               "\[\]"
+
+LEFT_PAREN          "("
+RIGHT_PAREN         ")"
 
 BEGIN_CMNT_BLOCK    (?i:=begin) 
 END_CMNT_BLOCK      (?i:=end)(\r|\n)
@@ -23,6 +36,16 @@ END_CMNT_BLOCK      (?i:=end)(\r|\n)
 SGL_QUOTE           "'"
 DBL_QUOTE           "\""
 BACKTICK            "`"
+QUOTE_START         "%"
+
+GLB_VARIABLE        "$"
+GLB_GENERALS        [_*=$?!\"\.\\,<>~@/:;]
+GLB_STRMATCH        [&`\'+]|[[:digit:]]+
+
+UPLUS               "+"
+UMINUS              "-"
+
+REGEX               "/[^/]*"
 
 POWER               "**"
 ADD_ASSIGN_OP       "+="
@@ -30,6 +53,9 @@ SUB_ASSIGN_OP       "-="
 DIV_ASSIGN_OP       "\\="
 MPLY_ASSIGN_OP      "*="
 EXPO_ASSIGN_OP      "**="
+NOT_ASSIGN_OP       "^="
+MOD_ASSIGN_OP       "%="
+
 AND_ASSIGN_OP       "&="
 OR_ASSIGN_OP        "|="
 
@@ -40,37 +66,43 @@ ASSOCIATION         "=>"
 MATCH               "=~"
 NOT_MATCH           "!~"
 
+COLONS              "::"
+SYMBOL_START        ":"
+
 LEQ                 "<="
 GEQ                 ">="
 COMP                "<=>"
 LSHIFT              "<<"
 RSHIFT              ">>"
 
-UPLUS               "+"
-UMINUS              "-"
-
 AND                 "&&"
 OR                  "||"
 
 HEX_CHARS           [+-]?(?i:0x)[[:xdigit:]]*
-OCTAL_CHARS         [+-]?0[0-7]*
+OCTAL_CHARS         [+-]?0[\O]*
 DIGITS              [+-]?[0-9]*\.?[0-9]*
 
 %%
 
-"#".*                   ;
+{UPLUS}            { return UPLUS; }
+{UMINUS}           { return UMINUS; }
+
+{COLONS}           { return COLONS;     }
+{SYMBOL_START}     { return SYMB_START; }
+
+"#".*              ;
+[  \t\f]           ;
 
 {BEGIN_CMNT_BLOCK}      { BEGIN(IN_BEGIN_CMNT);       }
 {SGL_QUOTE}             { BEGIN(IN_SGL_STRING);       }
 {DBL_QUOTE}             { BEGIN(IN_STRING);           }
 {BACKTICK}              { BEGIN(IN_BACKTICK);         }
-[0-9]                   { unput(yytext[0]); BEGIN(IN_NUMERIC); }
+{REGEX}                 { BEGIN(IN_REGEX);            }
+{GLB_VARIABLE}          { BEGIN(IN_GLOBAL);           }
 
-<IN_NUMERIC>{
 {HEX_CHARS}       { yylval.val = strtol(yytext, NULL, 16); return INTEGER; }
 {OCTAL_CHARS}     { yylval.val = strtol(yytext, NULL,  8); return INTEGER; }
-{DIGITS}          { p("integer", yytext); return INTEGER; }
-}
+{DIGITS}          { yylval.val = strtol(yytext, NULL, 10); return INTEGER; }
 
 <IN_STRING>{
 {DBL_QUOTE}       { BEGIN(0); return STRING; }
@@ -96,34 +128,56 @@ DIGITS              [+-]?[0-9]*\.?[0-9]*
 [\n]              ;
 }
 
-[\n]               {  yylineno++; return '\n'; }
+<IN_QUOTED_STRING>{
+[A-Za-z0-9]       { /* TODO: make a generic string parser for all of the above! */ }
+}
 
-{ADD_ASSIGN_OP}    { yylval.id = '+'; return ASSIGN_OP;    }
-{SUB_ASSIGN_OP}    { yylval.id = '-'; return ASSIGN_OP;    }
-{MPLY_ASSIGN_OP}   { yylval.id = '*'; return ASSIGN_OP;    }
-{DIV_ASSIGN_OP}    { yylval.id = '\\'; return ASSIGN_OP;    }
-{EXPO_ASSIGN_OP}   { yylval.id = PWR; return ASSIGN_OP;    }
-{AND_ASSIGN_OP}    { yylval.id = '&'; return ASSIGN_OP;    }
-{OR_ASSIGN_OP}     { yylval.id = '|'; return ASSIGN_OP;    }
-{LSHIFT}           { yylval.id = LSHIFT; return ASSIGN_OP; }
-{RSHIFT}           { yylval.id = RSHIFT; return ASSIGN_OP; }
+<IN_REGEX>{
+<<EOF>>           { yyerror("unterminated regex"); return 0; }
+}
 
-{NOT_EQUAL}        { return NOT_EQUAL; }
-{NOT_MATCH}        { return NOT_MATCH; }
-{SINGLE_EQUAL}     { return SGL_EQUAL; }
-{DOUBLE_EQUAL}     { return DBL_EQUAL; }
+<IN_GLOBAL>{
+[GLB_GENERALS]    {  }
+[GLB_STRMATCH]    {  }
+.                 { yyerror("invalid char in global variable"); }
+}
 
-{POWER}            { return PWR;  }
-{LEQ}              { return LEQ;  }
-{GEQ}              { return GEQ;  }
-{COMP}             { return COMP; }
-{AND}              { return AND;  }
-{OR}               { return OR;   }
+[\r\n]              {  yylineno++; return '\n'; }
+
+{ARRAY_ASSIGN}    { return ARRAY_ASSIGN;                  }
+{ARRAY}           { return ARRAY;                         }
+
+{LEFT_PAREN}      { return LPAREN; }
+{RIGHT_PAREN}     { return RPAREN; }
+
+{ADD_ASSIGN_OP}   { yylval.id = '+'; return ASSIGN_OP;    }
+{SUB_ASSIGN_OP}   { yylval.id = '-'; return ASSIGN_OP;    }
+{MPLY_ASSIGN_OP}  { yylval.id = '*'; return ASSIGN_OP;    }
+{DIV_ASSIGN_OP}   { yylval.id = '\\'; return ASSIGN_OP;   }
+{EXPO_ASSIGN_OP}  { yylval.id = PWR; return ASSIGN_OP;    }
+{AND_ASSIGN_OP}   { yylval.id = '&'; return ASSIGN_OP;    }
+{OR_ASSIGN_OP}    { yylval.id = '|'; return ASSIGN_OP;    }
+{NOT_ASSIGN_OP}   { yylval.id = '*'; return ASSIGN_OP;    }
+{MOD_ASSIGN_OP}   { yylval.id - '%'; return ASSIGN_OP;    }
+{LSHIFT}          { yylval.id = LSHIFT; return ASSIGN_OP; }
+{RSHIFT}          { yylval.id = RSHIFT; return ASSIGN_OP; }
+
+{NOT_EQUAL}       { return NOT_EQUAL;  }
+{NOT_MATCH}       { return NOT_MATCH;  }
+{SINGLE_EQUAL}    { return SGL_EQUAL;  }
+{DOUBLE_EQUAL}    { return DBL_EQUAL;  }
 
 
+{POWER}           { return PWR;  }
+{LEQ}             { return LEQ;  }
+{GEQ}             { return GEQ;  }
+{COMP}            { return COMP; }
+{AND}             { return AND;  }
+{OR}              { return OR;   }
 
-.                  { p("unrecognised char", yytext); }
-<<EOF>>            { return 0; }
+{IDENTIFIER}      { yylval.id = yytext; return IDENTIFIER; }
+.                 { printf("unrecognised char: %s\n", yytext); }
+<<EOF>>           { return 0; }
 %%
 
 void fp() {
@@ -154,7 +208,7 @@ int main(int argc, const char* argv[])
   }
 
   while(tokid = yylex()) {
-    printf("%i\n", tokid);
+    printf("%s : %i\n", yytext,  tokid);
   }
   printf("Done!\n");
   return 0;
