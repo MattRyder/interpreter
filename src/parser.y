@@ -37,6 +37,11 @@
 %token MATCH              /* =~ */
 %token NOT_MATCH          /* !~ */
 %token LSHIFT RSHIFT      /* << and >> */
+%token COLONS SYMB_START  /* :: and : */
+%token ARRAY_ASSIGN       /* []=      */
+%token ARRAY              /* []       */
+%token LPAREN RPAREN
+
 
 %token<id> ASSIGN_OP      /* *=, +=, -=, /= */
 
