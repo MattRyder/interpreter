@@ -1,9 +1,7 @@
 /* parser.y */
 
 %{
-
 #include "node.h"
-
 %}
 
 /* token data types */

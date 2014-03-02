@@ -245,12 +245,8 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 {IDENTIFIER}      { yylval.id = yytext; return IDENTIFIER;     }
 .                 { printf("unrecognised char: %s\n", yytext); }
 <<EOF>>           { return 0; }
-%%
 
-void fp() {
-  //for when I want to do an implicit, fast p()
-  p("yybuffer", yytext);
-}
+%%
 
 void p(char* type, char* text)
 {
@@ -274,9 +270,7 @@ int main(int argc, const char* argv[])
     yyin = fopen(argv[1], "r");
   }
 
-  while(tokid = yylex()) {
-    printf("%s : %i\n", yytext,  tokid);
-  }
+  while(tokid = yylex()) { printf("%s : %i\n", yytext,  tokid); }
   printf("Done!\n");
   return 0;
 }
