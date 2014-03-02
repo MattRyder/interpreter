@@ -22,7 +22,39 @@ unsigned char* buffer;
 %x IN_REGEX
 %x IN_GLOBAL
 
-IDENTIFIER          [$@]?[A-Za-z0-9_]+
+ALIAS               "alias"
+AND                 "and"
+BEGIN               "begin"
+CASE                "case"
+CLASS               "class"
+DEF                 "def"
+DEFINED             "defined?"
+DO                  "do"
+ELSE                "else"
+ELSIF               "elsif"
+END                 "end"
+ENSURE              "ensure"
+FOR                 "for"
+IF                  "if"
+IN                  "in"
+MODULE              "module"
+NIL                 "nil"
+NOT                 "not"
+OR                  "or"
+RESCUE              "rescue"
+RETURN              "return"
+SELF                "self"
+SUPER               "super"
+THEN                "then"
+UNDEF               "undef"
+UNLESS              "unless"
+UNTIL               "until"
+WHEN                "when"
+WHILE               "while"
+YIELD               "yield"
+
+CONSTANT            [A-Z][A-Za-z_]
+IDENTIFIER          [$@]?[a-z_][A-Za-z0-9_]+
 
 ARRAY_ASSIGN        "\[\]\="
 ARRAY               "\[\]"
@@ -80,18 +112,51 @@ OR                  "||"
 
 HEX_CHARS           [+-]?(?i:0x)[[:xdigit:]]*
 OCTAL_CHARS         [+-]?0[\O]*
-DIGITS              [+-]?[0-9]*\.?[0-9]*
+INTEGERS            [+-]?[0-9]*
+FLOATS              [+-]?[0-9]*\.[0-9]*
 
 %%
 
 {UPLUS}            { return UPLUS; }
 {UMINUS}           { return UMINUS; }
 
+{ALIAS} { return ALIAS; }               
+{AND}   { return AND; }            
+{BEGIN} { return BEGIN; }            
+{CASE}  { return CASE; }            
+{CLASS} { return CLASS; } 
+{DEF}   { return DEF: }
+{DEFINED} { return DEFINED; }
+{DO} { return DO; }
+{ELSE} { return ELSE; }
+{ELSIF} { return ELSIF; }
+{END} { return END; }
+{ENSURE} { return ENSURE; }
+{FOR} { return FOR; }
+{IF} { return IF; }
+{IN} { return IN; }
+{MODULE} { return MODULE; }
+{NIL} { return NIL; }
+{NOT} { return NOT; }
+{OR}  { return OR; }
+{RESCUE} { return RESCUE; }
+{RETURN} { return RETURN; }
+{SELF} { return SELF; }
+{SUPER} { return SUPER; }
+{THEN}  { return THEN; }
+{UNDEF} { return UNDEF; }
+{UNLESS} { return UNLESS; }
+{UNTIL} { return UNTIL; }
+{WHEN} { return WHEN; }
+{WHILE} { return WHILE; }
+{YIELD} { return YIELD; }
+
+
 {COLONS}           { return COLONS;     }
 {SYMBOL_START}     { return SYMB_START; }
 
 "#".*              ;
-[  \t\f]           ;
+[  \t\f\v]         ;
 
 {BEGIN_CMNT_BLOCK}      { BEGIN(IN_BEGIN_CMNT);       }
 {SGL_QUOTE}             { BEGIN(IN_SGL_STRING);       }
@@ -102,7 +167,8 @@ DIGITS              [+-]?[0-9]*\.?[0-9]*
 
 {HEX_CHARS}       { yylval.val = strtol(yytext, NULL, 16); return INTEGER; }
 {OCTAL_CHARS}     { yylval.val = strtol(yytext, NULL,  8); return INTEGER; }
-{DIGITS}          { yylval.val = strtol(yytext, NULL, 10); return INTEGER; }
+{FLOATS}          { yylval.val = strtol(yytext, NULL, 10); return FLOAT;   }
+{INTEGERS}        { yylval.val = strtol(yytext, NULL, 10); return INTEGER; }
 
 <IN_STRING>{
 {DBL_QUOTE}       { BEGIN(0); return STRING; }
@@ -175,7 +241,8 @@ DIGITS              [+-]?[0-9]*\.?[0-9]*
 {AND}             { return AND;  }
 {OR}              { return OR;   }
 
-{IDENTIFIER}      { yylval.id = yytext; return IDENTIFIER; }
+{CONSTANT}        { yylval.id = yytext; return CONSTANT:       }
+{IDENTIFIER}      { yylval.id = yytext; return IDENTIFIER;     }
 .                 { printf("unrecognised char: %s\n", yytext); }
 <<EOF>>           { return 0; }
 %%

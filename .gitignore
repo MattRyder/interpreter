@@ -24,5 +24,7 @@ interpreter
 
 # Bison intermediate files
 *.tab.*
+
 lex.yy.c
 testfile.rb
+interpreter
