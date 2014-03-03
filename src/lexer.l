@@ -7,8 +7,6 @@
 void fp();
 void p(char* type, char* text);
 
-unsigned char* buffer;
-
 %}
 
 %option yylineno noyywrap
@@ -54,7 +52,10 @@ WHILE               "while"
 YIELD               "yield"
 
 CONSTANT            [A-Z][A-Za-z_]
-IDENTIFIER          [$@]?[a-z_][A-Za-z0-9_]+
+IDENTIFIER          [a-z_][A-Za-z0-9_]+
+GLOBAL_VAR          [$]{IDENTIFIER}
+INSTANCE_VAR        [@]{IDENTIFIER}
+
 
 ARRAY_ASSIGN        "\[\]\="
 ARRAY               "\[\]"
@@ -107,8 +108,8 @@ COMP                "<=>"
 LSHIFT              "<<"
 RSHIFT              ">>"
 
-AND                 "&&"
-OR                  "||"
+BITWISE_AND         "&&"
+BITWISE_OR          "||"
 
 HEX_CHARS           [+-]?(?i:0x)[[:xdigit:]]*
 OCTAL_CHARS         [+-]?0[\O]*
@@ -120,43 +121,43 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 {UPLUS}            { return UPLUS; }
 {UMINUS}           { return UMINUS; }
 
-{ALIAS} { return ALIAS; }               
-{AND}   { return AND; }            
-{BEGIN} { return BEGIN; }            
-{CASE}  { return CASE; }            
-{CLASS} { return CLASS; } 
-{DEF}   { return DEF: }
-{DEFINED} { return DEFINED; }
-{DO} { return DO; }
-{ELSE} { return ELSE; }
-{ELSIF} { return ELSIF; }
-{END} { return END; }
-{ENSURE} { return ENSURE; }
-{FOR} { return FOR; }
-{IF} { return IF; }
-{IN} { return IN; }
-{MODULE} { return MODULE; }
-{NIL} { return NIL; }
-{NOT} { return NOT; }
-{OR}  { return OR; }
-{RESCUE} { return RESCUE; }
-{RETURN} { return RETURN; }
-{SELF} { return SELF; }
-{SUPER} { return SUPER; }
-{THEN}  { return THEN; }
-{UNDEF} { return UNDEF; }
-{UNLESS} { return UNLESS; }
-{UNTIL} { return UNTIL; }
-{WHEN} { return WHEN; }
-{WHILE} { return WHILE; }
-{YIELD} { return YIELD; }
+{ALIAS}     { return ALIAS;   }               
+{AND}       { return AND;     }            
+{BEGIN}     { return BEGINT; /* BEGIN taken by Flex! */ }            
+{CASE}      { return CASE;    }            
+{CLASS}     { return CLASS;   } 
+{DEF}       { return DEF;     }
+{DEFINED}   { return DEFINED; }
+{DO}        { return DO;      }
+{ELSE}      { return ELSE;    }
+{ELSIF}     { return ELSIF;   }
+{END}       { return END;     }
+{ENSURE}    { return ENSURE;  }
+{FOR}       { return FOR;     }
+{IF}        { return IF;      }
+{IN}        { return IN;      }
+{MODULE}    { return MODULE;  }
+{NIL}       { return NIL;     }
+{NOT}       { return NOT;     }
+{OR}        { return OR;      }
+{RESCUE}    { return RESCUE;  }
+{RETURN}    { return RETURN;  }
+{SELF}      { return SELF;    }
+{SUPER}     { return SUPER;   }
+{THEN}      { return THEN;    }
+{UNDEF}     { return UNDEF;   }
+{UNLESS}    { return UNLESS;  }
+{UNTIL}     { return UNTIL;   }
+{WHEN}      { return WHEN;    }
+{WHILE}     { return WHILE;   }
+{YIELD}     { return YIELD;   }
 
 
 {COLONS}           { return COLONS;     }
 {SYMBOL_START}     { return SYMB_START; }
 
 "#".*              ;
-[  \t\f\v]         ;
+[  \t\f\v\x0A]     ;
 
 {BEGIN_CMNT_BLOCK}      { BEGIN(IN_BEGIN_CMNT);       }
 {SGL_QUOTE}             { BEGIN(IN_SGL_STRING);       }
@@ -172,7 +173,7 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 
 <IN_STRING>{
 {DBL_QUOTE}       { BEGIN(0); return STRING; }
-[^"]+             { yylval.val = yytext; yymore(); }
+[^"]+             { yylval.val = &yytext; yymore(); }
 <<EOF>>           { yyerror("unterminated string"); return 0; }
 }
 
@@ -208,7 +209,7 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 .                 { yyerror("invalid char in global variable"); }
 }
 
-[\r\n]              {  yylineno++; return '\n'; }
+[\r\n]            {  yylineno++; return '\n'; }
 
 {ARRAY_ASSIGN}    { return ARRAY_ASSIGN;                  }
 {ARRAY}           { return ARRAY;                         }
@@ -238,10 +239,12 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 {LEQ}             { return LEQ;  }
 {GEQ}             { return GEQ;  }
 {COMP}            { return COMP; }
-{AND}             { return AND;  }
-{OR}              { return OR;   }
+{BITWISE_AND}     { return BITWISE_AND;  }
+{BITWISE_OR}      { return BITWISE_OR;   }
 
-{CONSTANT}        { yylval.id = yytext; return CONSTANT:       }
+{CONSTANT}        { yylval.id = yytext; return CONSTANT;       }
+{GLOBAL_VAR}      { yylval.id = yytext; return GLOBAL_VAR;     }
+{INSTANCE_VAR}    { yylval.id = yytext; return INSTANCE_VAR;   }
 {IDENTIFIER}      { yylval.id = yytext; return IDENTIFIER;     }
 .                 { printf("unrecognised char: %s\n", yytext); }
 <<EOF>>           { return 0; }
@@ -274,9 +277,12 @@ int main(int argc, const char* argv[])
     yyin = fopen(argv[1], "r");
   }
 
-  while(tokid = yylex()) {
-    printf("%s : %i\n", yytext,  tokid);
-  }
-  printf("Done!\n");
+  
+  while(tokid = yylex()) { printf("%s : %i\n", yytext,  tokid); }
+
+  printf("Lexical Analysis Complete!\n");
+  yyparse();
+
+  printf("Completed Interpretation\n");
   return 0;
 }
