@@ -5,9 +5,7 @@
 
 #include "rbcore.h"
 
-//struct gvar_entry *global_entry();
-
-struct Node
+typedef struct Node
 {
   uint32 flags;
 
@@ -37,7 +35,7 @@ struct Node
     //int state; unused in mruby, possibly.
     int count;
   } Value3;
-};
+} NODE;
 
 /* Node types for the AST */
 enum NODETYPES {

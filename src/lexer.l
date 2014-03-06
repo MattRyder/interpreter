@@ -1,7 +1,10 @@
 /* lexer.y */
 
 %{
+#define YYERROR_VERBOSE 1
+
 #include "rbcore.h"
+#include "node.h"
 #include "parser.tab.h"
 
 void fp();
@@ -52,7 +55,7 @@ WHILE               "while"
 YIELD               "yield"
 
 CONSTANT            [A-Z][A-Za-z_]
-IDENTIFIER          [a-z_][A-Za-z0-9_]+
+IDENTIFIER          [a-z_]+[A-Za-z0-9_]*
 GLOBAL_VAR          [$]{IDENTIFIER}
 INSTANCE_VAR        [@]{IDENTIFIER}
 
@@ -209,7 +212,7 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 .                 { yyerror("invalid char in global variable"); }
 }
 
-[\r\n]            {  yylineno++; return '\n'; }
+[\n]            {  yylineno++; return '\n'; }
 
 {ARRAY_ASSIGN}    { return ARRAY_ASSIGN;                  }
 {ARRAY}           { return ARRAY;                         }
@@ -262,7 +265,7 @@ void p(char* type, char* text)
 
 int yyerror(char* error_string)
 {
-  printf("[line %d] error: %s\n", yylineno-1, error_string);
+  printf("[line %d] error: %s. %s\n", yylineno-1, error_string, yytext);
   return 0;
 }
 
@@ -278,7 +281,7 @@ int main(int argc, const char* argv[])
   }
 
   
-  while(tokid = yylex()) { printf("%s : %i\n", yytext,  tokid); }
+  //while(tokid = yylex()) { printf("%s : %i\n", yytext,  tokid); }
 
   printf("Lexical Analysis Complete!\n");
   yyparse();
