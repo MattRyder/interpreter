@@ -7,7 +7,7 @@
 
 typedef struct Node
 {
-  uint32 flags;
+  uint32_t flags;
 
   union 
   {
@@ -38,7 +38,7 @@ typedef struct Node
 } NODE;
 
 /* Node types for the AST */
-enum NODETYPES {
+typedef enum NODETYPES {
   NODE_ALIAS,         /* alias method as...              */
   NODE_AND,           /* and                             */
   NODE_ARGS,          /* method arguments                */
@@ -108,6 +108,9 @@ enum NODETYPES {
   NODE_YIELD,         /* yield keyword                   */
   NODE_ZARRAY,        /* [] without elements             */
   NODE_ZSUPER         /* super w/o keywords              */
-};
+} NodeTypes;
+
+// Creates a new NODE with (up to) three values
+NODE* create_node(NodeTypes type, NODE* arg1, NODE* arg2, NODE* arg3);
 
 #endif

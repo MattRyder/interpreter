@@ -3,13 +3,20 @@
 #ifndef RBCORE_H
 #define RBCORE_H
 
-/* shorthand datatypes */
-typedef unsigned char uint8;
-typedef unsigned short uint16;
-typedef unsigned int uint32;
+#include <stdint.h>
 
 /* bison tokentype definitions */
-typedef uint32 VAL;
-typedef uint32 ID;
+typedef uint32_t VAL;
+typedef uint32_t ID;
+
+// Base ruby data reqd by descendents
+struct rb_base {
+  uint32_t classname;
+  uint32_t flags;
+};
+
+typedef struct rb_class {
+  struct rb_base base;
+} RBClass;
 
 #endif
