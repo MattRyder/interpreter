@@ -1,18 +1,32 @@
 /* parser.y */
 
 %{
+#define YYDEBUG 0
+
 #include <stdio.h>
+#include <stdbool.h>
+
 #include "node.h"
+#include "gc.h"
+
+int yylex(void);
+int yyerror(const char*);
+
+/* use defines to map the NodeTypes to create_node calls */
+#define MK_MCALL(rec, op, arg) create_node(NODE_CALL, rec, op, arg)
+#define MK_LITERAL(literal) create_node(NODE_LITERAL, literal, 0, 0)
+
+NODE *parse_tree = 0;
 %}
 
 %error-verbose 
 
 /* token data types */
 %union {
-  NODE *node;
-  VAL val;
-  ID id;
-  int number;
+  NODE *node; /* Tri-value Node type */
+  VAL  val;   /* numeric values      */
+  ID   id;    /* identifier for operation ('+' etc)  */
+  STR   str;  /* string data type    */
 }
 
 /* ruby reserved keywords  */
@@ -52,8 +66,8 @@
 %token <node>  DXSTRING
 
 %type <val>  initial argument
-%type <val>   literal numeric
-%type <id>    symbol variable fn_name operator
+%type <val>  literal numeric
+%type <id>   symbol
 
 /* operator tokens */
 %token UPLUS              /* +   */
@@ -86,40 +100,31 @@
 
 %%
 
-argument  : argument UPLUS argument { $$ = $1 + $3; printf("%d + %d = %d\n", $1, $3, $$); }
-          | initial;
+argument  : argument UPLUS argument { /*$$ = MK_MCALL($1, '+', $3);*/ }
+          | initial
 
-initial   : literal
+initial   : literal { /*$$ = MK_LITERAL($1);*/ }
 
-literal   : SYMB_START symbol | numeric;
+literal   : SYMB_START symbol { $$ = $2; }
+          | numeric
 
-symbol    : fn_name | GLOBAL_VAR | INSTANCE_VAR;
+symbol    : GLOBAL_VAR | INSTANCE_VAR
 
-fn_name   : operand | operator;
-
-operator  : UPLUS        { $$ = UPLUS;        }
-          | UMINUS       { $$ = UMINUS;       }
-          | POWER        { $$ = POWER;        }
-          | LEQ          { $$ = LEQ;          }
-          | GEQ          { $$ = GEQ;          }
-          | COMP         { $$ = COMP;         }
-          | SGL_EQUAL    { $$ = SGL_EQUAL;    }
-          | DBL_EQUAL    { $$ = DBL_EQUAL;    }
-          | MATCH        { $$ = MATCH;        }
-          | LSHIFT       { $$ = LSHIFT;       }
-          | RSHIFT       { $$ = RSHIFT;       }
-          | COLONS       { $$ = COLONS;       }
-          | ARRAY        { $$ = ARRAY;        }
-          | ARRAY_ASSIGN { $$ = ARRAY_ASSIGN; }
-
-
-variable  : GLOBAL_VAR | INSTANCE_VAR | CONSTANT | IDENTIFIER;
-operand   : CONSTANT | IDENTIFIER;
-numeric   : INTEGER | FLOAT;
-
-terminals : terminal | terminals ';' { yyerrok; };
-terminal  : ','| ';' { yyerrok; } | '\n';
+numeric   : INTEGER | FLOAT
 
 %%
+
+NODE* create_node(NodeTypes type, NODE* arg1, NODE* arg2, NODE* arg3)
+{
+  printf("[create_node]");
+  NODE *new_node = (NODE *)create_obj();
+  new_node->Value1.node = arg1;
+  new_node->Value2.node = arg2;
+  new_node->Value3.node = arg3;
+
+  new_node->flags |= NFLAG_NODE;
+
+  return new_node;
+}
 
 

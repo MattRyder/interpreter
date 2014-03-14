@@ -7,6 +7,8 @@
 #include "node.h"
 #include "parser.tab.h"
 
+int yyerror(char*);
+
 void fp();
 void p(char* type, char* text);
 
@@ -176,19 +178,19 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 
 <IN_STRING>{
 {DBL_QUOTE}       { BEGIN(0); return STRING; }
-[^"]+             { yylval.val = &yytext; yymore(); }
+[^"]+             { yylval.str = yytext; yymore(); }
 <<EOF>>           { yyerror("unterminated string"); return 0; }
 }
 
 <IN_SGL_STRING>{
 {SGL_QUOTE}       { BEGIN(0); return STRING; }
-[^']+             { yylval.val = yytext; yymore(); }
+[^']+             { yylval.str = yytext; yymore(); }
 <<EOF>>           { yyerror("unterminated string"); return 0; }
 }
 
 <IN_BACKTICK>{
 {BACKTICK}        { BEGIN(0); return DXSTRING; }
-[^`]+             { yylval.val = yytext; yymore(); }
+[^`]+             { yylval.str = yytext; yymore(); }
 <<EOF>>           { yyerror("unterminated backtick"); return 0; }
 }
 
@@ -212,7 +214,7 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 .                 { yyerror("invalid char in global variable"); }
 }
 
-[\n]            {  yylineno++; return '\n'; }
+[\n]              {  yylineno++; return '\n'; }
 
 {ARRAY_ASSIGN}    { return ARRAY_ASSIGN;                  }
 {ARRAY}           { return ARRAY;                         }
@@ -228,7 +230,7 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 {AND_ASSIGN_OP}   { yylval.id = '&'; return ASSIGN_OP;    }
 {OR_ASSIGN_OP}    { yylval.id = '|'; return ASSIGN_OP;    }
 {NOT_ASSIGN_OP}   { yylval.id = '*'; return ASSIGN_OP;    }
-{MOD_ASSIGN_OP}   { yylval.id - '%'; return ASSIGN_OP;    }
+{MOD_ASSIGN_OP}   { yylval.id = '%'; return ASSIGN_OP;    }
 {LSHIFT}          { yylval.id = LSHIFT; return ASSIGN_OP; }
 {RSHIFT}          { yylval.id = RSHIFT; return ASSIGN_OP; }
 
@@ -245,10 +247,10 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 {BITWISE_AND}     { return BITWISE_AND;  }
 {BITWISE_OR}      { return BITWISE_OR;   }
 
-{CONSTANT}        { yylval.id = yytext; return CONSTANT;       }
-{GLOBAL_VAR}      { yylval.id = yytext; return GLOBAL_VAR;     }
-{INSTANCE_VAR}    { yylval.id = yytext; return INSTANCE_VAR;   }
-{IDENTIFIER}      { yylval.id = yytext; return IDENTIFIER;     }
+{CONSTANT}        { yylval.str = yytext; return CONSTANT;       }
+{GLOBAL_VAR}      { yylval.str = yytext; return GLOBAL_VAR;     }
+{INSTANCE_VAR}    { yylval.str = yytext; return INSTANCE_VAR;   }
+{IDENTIFIER}      { yylval.str = yytext; return IDENTIFIER;     }
 .                 { printf("unrecognised char: %s\n", yytext); }
 <<EOF>>           { return 0; }
 %%
@@ -282,8 +284,8 @@ int main(int argc, const char* argv[])
 
   
   //while(tokid = yylex()) { printf("%s : %i\n", yytext,  tokid); }
+  //printf("Lexical Analysis Complete!\n");
 
-  printf("Lexical Analysis Complete!\n");
   yyparse();
 
   printf("Completed Interpretation\n");

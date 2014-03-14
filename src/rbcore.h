@@ -8,6 +8,12 @@
 /* bison tokentype definitions */
 typedef uint32_t VAL;
 typedef uint32_t ID;
+typedef char*    STR;
+
+enum NODE_FLAGS {
+  NFLAG_NONE,
+  NFLAG_NODE
+};
 
 // Base ruby data reqd by descendents
 struct rb_base {

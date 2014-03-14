@@ -1,8 +1,8 @@
-BUILD_DIR = .
+BUILD_DIR = ../build
 EXE 			= interpreter
 
 CC   			= clang
-CFLAGS 		= -c -lfl -ly
+CFLAGS 		= -c -o $(BUILD_DIR)/$@
 LDFLAGS   = -o $(BUILD_DIR)/$(EXE) # "linker flags", yeah
 
 OBJS 			= parser.tab.o lex.yy.o gc.o
@@ -18,10 +18,13 @@ lex.yy.c: lexer.l parser.tab.h
 	flex lexer.l
 
 parser: lex.yy.c parser.tab.c parser.tab.h
-	$(CC) lex.yy.c parser.tab.c $(CFLAGS)
+	$(CC) lex.yy.c parser.tab.c -lfl -ly $(CFLAGS)
+
+.c.o:
+	$(CC) $(CFLAGS) $<  
 
 interpreter: $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS)
+	$(CC) $(LDFLAGS) $(foreach OBJECT, $(OBJS), $(BUILD_DIR)/$(OBJECT))
 
 clean:
-	rm -rfv $(BUILD_DIR)/$(EXE) lex.yy.c parser.tab.* stack.hh *.o
+	rm -rfv $(BUILD_DIR)/$(EXE) lex.yy.c parser.tab.* $(BUILD_DIR)/*.o
