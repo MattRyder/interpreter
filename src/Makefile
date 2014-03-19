@@ -5,7 +5,7 @@ CC   			= clang
 CFLAGS 		= -c -o $(BUILD_DIR)/$@
 LDFLAGS   = -o $(BUILD_DIR)/$(EXE) # "linker flags", yeah
 
-OBJS 			= parser.tab.o lex.yy.o gc.o
+OBJS 			= parser.tab.o lex.yy.o rbcore.o gc.o vm.o main.o
 
 .PHONY: all clean
 

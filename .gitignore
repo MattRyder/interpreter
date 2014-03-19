@@ -27,4 +27,4 @@ interpreter
 
 lex.yy.c
 testfile.rb
-interpreter
+build/

@@ -12,6 +12,9 @@ int yyerror(char*);
 void fp();
 void p(char* type, char* text);
 
+// root node that holds the parse tree
+NODE *parse_tree = 0;
+
 %}
 
 %option yylineno noyywrap
@@ -255,39 +258,33 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 <<EOF>>           { return 0; }
 %%
 
-void fp() {
-  //for when I want to do an implicit, fast p()
-  p("yybuffer", yytext);
-}
-
 void p(char* type, char* text)
 {
   printf("[line %d] %s: %s\n", yylineno-1, type, text);
 }
 
-int yyerror(char* error_string)
+// calls the bison yyparse fn
+// and return the parse tree
+NODE* rb_parsefile(char *ruby_script)
 {
-  printf("[line %d] error: %s. %s\n", yylineno-1, error_string, yytext);
+  yyin = fopen(ruby_script, "r");
+
+  // if yyparse is ok, return the parse tree!
+  if(yyparse() == 0)
+    return parse_tree;
+  
+  printf("yyparse failed\n");
+  // failed somewhere, return null!
   return 0;
 }
 
-int main(int argc, const char* argv[])
+NODE* parse_file(char *filename)
 {
-  int tokid;
+  return rb_parsefile(filename);
+}
 
-  if(argc < 2)
-  {
-    yyin = stdin;
-  } else {
-    yyin = fopen(argv[1], "r");
-  }
-
-  
-  //while(tokid = yylex()) { printf("%s : %i\n", yytext,  tokid); }
-  //printf("Lexical Analysis Complete!\n");
-
-  yyparse();
-
-  printf("Completed Interpretation\n");
+int yyerror(char* error_string)
+{
+  printf("[line %d] error: %s. %s\n", yylineno-1, error_string, yytext);
   return 0;
 }

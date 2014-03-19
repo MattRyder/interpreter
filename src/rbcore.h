@@ -25,4 +25,7 @@ typedef struct rb_class {
   struct rb_base base;
 } RBClass;
 
+void parse_argv(int argc, char **argv);
+void set_filename(char *filename);
+
 #endif

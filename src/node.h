@@ -15,7 +15,8 @@ typedef struct Node
     //ID id; possibly unused
     //ID *table; unused
     VAL val;
-    VAL (*func)(); 
+    VAL (*func)();
+    STR literal;
   } Value1;
 
   union
@@ -36,6 +37,10 @@ typedef struct Node
     int count;
   } Value3;
 } NODE;
+
+
+/* accessors for node values */
+#define VAL_LITERAL Value1.literal
 
 /* Node types for the AST */
 typedef enum NODETYPES {
