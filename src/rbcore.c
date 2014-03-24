@@ -1,5 +1,6 @@
 /* ruby core logic */
 
+#include "rbcore.h"
 #include "node.h"
 
 int base_argc;
@@ -7,22 +8,20 @@ char **base_argv;
 
 char *script_filename;
 
+NODE* parse_file(char* filename);
+
 void parse_argv(int argc, char **argv)
 {
   NODE *tree;
   base_argc = argc;
   base_argv = argv;
 
-  printf("[DBG] Arg count: %d\n", argc);
-
   set_filename(argv[1]);
-  printf("[DBG] set filename as: %s\n", argv[1]);
 
   // TODO: parse any params here
-  tree = parse_file(script_filename);
+  tree = (NODE*)parse_file(script_filename);
 
-  printf("TREE: %\d %c %d = 95\n", (NODE*)tree->Value1.node,
-      tree->Value2.node, tree->Value3.node);
+  //printf("%d %c %d", tree->Value1.node, tree->Value2.node, tree->Value3.node);
 }
 
 // Sets the filename of the Ruby program

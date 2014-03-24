@@ -24,7 +24,7 @@ typedef struct Node
     struct Node *node;
     //ID id;
     //VAL val;
-    int arg_length;
+    VAL length;
   } Value2;
 
   union
@@ -40,7 +40,14 @@ typedef struct Node
 
 
 /* accessors for node values */
-#define VAL_LITERAL Value1.literal
+#define node_literal Value1.literal
+
+// list templating
+#define node_head Value1.node
+#define node_end  Value2.node
+#define node_next Value3.node
+#define node_length Value2.length
+
 
 /* Node types for the AST */
 typedef enum NODETYPES {
@@ -70,6 +77,7 @@ typedef enum NODETYPES {
   NODE_ENSURE,        /* ensure                          */
   NODE_EVSTR,         /* a string interpolation          */
   NODE_EXECSTR,       /* %x string                       */
+  NODE_FCALL,         /* function call                   */
   NODE_FLIP2,         /* exp-exp flipflop inclusive      */
   NODE_FLIP3,         /* exp-exp flipflop exclusive      */
   NODE_GASGN,         /* global var assign               */
@@ -100,6 +108,7 @@ typedef enum NODETYPES {
   NODE_RESBODY,       /* rescue block                    */
   NODE_RESCUE,        /* rescue statement                */
   NODE_RETURN,        /* return                          */
+  NODE_SCOPE,         /* eval scope                      */
   NODE_SINCLASS,      /* singleton class def             */
   NODE_SELF,          /* self reference                  */
   NODE_STRING,        /* string data type                */

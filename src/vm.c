@@ -31,7 +31,7 @@ void POP_TAG()
 
 NODE* EXEC_TAG()
 {
-  return (NODE*)setjmp(cur_tag->buffer);
+  return 0; //(NODE*)setjmp(cur_tag->buffer);
 }
 
 void vm_init()
@@ -91,7 +91,7 @@ static VAL vm_evaluate_node(NODE* node)
   switch(node->flags)
   {
     case NODE_LITERAL:
-      result = (VAL)node->VAL_LITERAL;
+      //result = (VAL)node->VAL_LITERAL;
       break;
   }
 

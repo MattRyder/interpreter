@@ -59,7 +59,7 @@ WHEN                "when"
 WHILE               "while"
 YIELD               "yield"
 
-CONSTANT            [A-Z][A-Za-z_]
+CONSTANT            [A-Z]+[A-Za-z_]*
 IDENTIFIER          [a-z_]+[A-Za-z0-9_]*
 GLOBAL_VAR          [$]{IDENTIFIER}
 INSTANCE_VAR        [@]{IDENTIFIER}
@@ -116,13 +116,15 @@ COMP                "<=>"
 LSHIFT              "<<"
 RSHIFT              ">>"
 
-BITWISE_AND         "&&"
-BITWISE_OR          "||"
+LOGICAL_AND         "&&"
+LOGICAL_OR          "||"
+BITWISE_AND         "&"
+BITWISE_OR          "|"
 
 HEX_CHARS           [+-]?(?i:0x)[[:xdigit:]]*
 OCTAL_CHARS         [+-]?0[\O]*
-INTEGERS            [+-]?[0-9]*
-FLOATS              [+-]?[0-9]*\.[0-9]*
+INTEGERS            [+-]?[0-9]+
+FLOATS              [+-]?[0-9]+\.[0-9]*
 
 %%
 
@@ -165,7 +167,7 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 {SYMBOL_START}     { return SYMB_START; }
 
 "#".*              ;
-[  \t\f\v\x0A]     ;
+[  \t\f\v]         ;
 
 {BEGIN_CMNT_BLOCK}      { BEGIN(IN_BEGIN_CMNT);       }
 {SGL_QUOTE}             { BEGIN(IN_SGL_STRING);       }
@@ -174,9 +176,11 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 {REGEX}                 { BEGIN(IN_REGEX);            }
 {GLB_VARIABLE}          { BEGIN(IN_GLOBAL);           }
 
+[\.\,\^\[\]\;] { return yytext[0]; }
+
 {HEX_CHARS}       { yylval.val = strtol(yytext, NULL, 16); return INTEGER; }
 {OCTAL_CHARS}     { yylval.val = strtol(yytext, NULL,  8); return INTEGER; }
-{FLOATS}          { yylval.val = strtol(yytext, NULL, 10); return FLOAT;   }
+{FLOATS}          { yylval.dbl = atof(yytext); return FLOAT;               }
 {INTEGERS}        { yylval.val = strtol(yytext, NULL, 10); return INTEGER; }
 
 <IN_STRING>{
@@ -200,7 +204,7 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 <IN_BEGIN_CMNT>{
 {END_CMNT_BLOCK}  { BEGIN(0); }
 [^\n]+            ;
-[\n]              ;
+[\x0A]              ;
 }
 
 <IN_QUOTED_STRING>{
@@ -217,7 +221,7 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 .                 { yyerror("invalid char in global variable"); }
 }
 
-[\n]              {  yylineno++; return '\n'; }
+\n             {  yylineno++; return '\n'; }
 
 {ARRAY_ASSIGN}    { return ARRAY_ASSIGN;                  }
 {ARRAY}           { return ARRAY;                         }
@@ -237,24 +241,31 @@ FLOATS              [+-]?[0-9]*\.[0-9]*
 {LSHIFT}          { yylval.id = LSHIFT; return ASSIGN_OP; }
 {RSHIFT}          { yylval.id = RSHIFT; return ASSIGN_OP; }
 
-{NOT_EQUAL}       { return NOT_EQUAL;  }
-{NOT_MATCH}       { return NOT_MATCH;  }
-{SINGLE_EQUAL}    { return SGL_EQUAL;  }
-{DOUBLE_EQUAL}    { return DBL_EQUAL;  }
+{ASSOCIATION}     { return ASSOCIATION; }
+{NOT_EQUAL}       { return NOT_EQUAL;   }
+{NOT_MATCH}       { return NOT_MATCH;   }
+{SINGLE_EQUAL}    { return SGL_EQUAL;   }
+{DOUBLE_EQUAL}    { return DBL_EQUAL;   }
 
 
 {POWER}           { return PWR;  }
 {LEQ}             { return LEQ;  }
 {GEQ}             { return GEQ;  }
 {COMP}            { return COMP; }
-{BITWISE_AND}     { return BITWISE_AND;  }
-{BITWISE_OR}      { return BITWISE_OR;   }
+{BITWISE_AND}     { return '&';  }
+{BITWISE_OR}      { return '|';  }
+{LOGICAL_AND}     { return BITWISE_AND;  }
+{LOGICAL_OR}      { return BITWISE_OR;   }
 
 {CONSTANT}        { yylval.str = yytext; return CONSTANT;       }
 {GLOBAL_VAR}      { yylval.str = yytext; return GLOBAL_VAR;     }
 {INSTANCE_VAR}    { yylval.str = yytext; return INSTANCE_VAR;   }
 {IDENTIFIER}      { yylval.str = yytext; return IDENTIFIER;     }
-.                 { printf("unrecognised char: %s\n", yytext); }
+
+"/"               { return '/'; }
+"*"               { return '*'; }
+
+.                 { return yyerror("unrecognised char"); }
 <<EOF>>           { return 0; }
 %%
 
@@ -263,28 +274,8 @@ void p(char* type, char* text)
   printf("[line %d] %s: %s\n", yylineno-1, type, text);
 }
 
-// calls the bison yyparse fn
-// and return the parse tree
-NODE* rb_parsefile(char *ruby_script)
-{
-  yyin = fopen(ruby_script, "r");
-
-  // if yyparse is ok, return the parse tree!
-  if(yyparse() == 0)
-    return parse_tree;
-  
-  printf("yyparse failed\n");
-  // failed somewhere, return null!
-  return 0;
-}
-
-NODE* parse_file(char *filename)
-{
-  return rb_parsefile(filename);
-}
-
 int yyerror(char* error_string)
 {
-  printf("[line %d] error: %s. %s\n", yylineno-1, error_string, yytext);
-  return 0;
+  printf("[line %d] error: %s. %s\n", yylineno, error_string, yytext);
+  return -1;
 }

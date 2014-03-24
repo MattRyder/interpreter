@@ -9,21 +9,26 @@
 typedef uint32_t VAL;
 typedef uint32_t ID;
 typedef char*    STR;
+typedef double  DBL;
 
-enum NODE_FLAGS {
+enum NODE_FLAGS
+{
   NFLAG_NONE,
   NFLAG_NODE
 };
 
 // Base ruby data reqd by descendents
-struct rb_base {
+typedef struct rb_base
+{
   uint32_t classname;
   uint32_t flags;
-};
+} RBBase;
 
-typedef struct rb_class {
+typedef struct rb_class
+{
   struct rb_base base;
 } RBClass;
+
 
 void parse_argv(int argc, char **argv);
 void set_filename(char *filename);
