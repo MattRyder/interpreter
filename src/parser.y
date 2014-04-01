@@ -55,9 +55,10 @@
 %type <id>   symbol operation cls_name fname variable
 %type <id>   operator 
 
-%type <node> mcall_arg mcall_args ret_args opt_args 
-%type <node> expr exprs expr_block initial argument arguments lhs method_call 
+%type <node> mcall_arg mcall_args ret_args opt_args rhs
+%type <node> expr exprs expr_block initial argument arguments lhs method_call command_call
 %type <node> fml_option fml_arg fml_args fml_list
+%type <node> mlhs_block multi_end multi_begin
 %type <node> association associations association_list array
 %type <node> if_elsif else 
 
@@ -89,6 +90,7 @@
 %left '+' '-'
 %left '*' '/'
 %right UPLUS UMINUS PWR
+%nonassoc COMP DBL_EQUAL NOT_EQUAL MATCH NOT_MATCH
 
 %%
 
@@ -100,10 +102,9 @@ rbprog    : /* boot */
 
 expr_block : exprs opt_terms
 
-exprs      : /* zero expr */
-           | expr             { $$ = MK_NLNODE($1); }
+exprs      : expr             { $$ = MK_NLNODE($1); }
            | exprs terms expr { $$ = append_block($1, MK_NLNODE($3)); }
-           | error exprs      { $$ = $2; }
+           | error exprs      { $$ = $2; } /* handle errs at expr level */
     
 
 expr      : associations { $$ = MK_HASH($1); }
@@ -114,6 +115,13 @@ expr      : associations { $$ = MK_HASH($1); }
               
               $$ = MK_RETURN($2);
             }
+          | mlhs_block SGL_EQUAL rhs
+            {
+              $1->node_value = $3;
+              $$ = $1;
+            }
+          | command_call
+          | argument
 
 /* Token -> non-terminal symbol definitions */
 cls_name  : IDENTIFIER { yyerror("Class name must be a constant variable"); }
@@ -210,10 +218,10 @@ initial   : literal
               $$ = MK_DEFINITION($2, $4, $5, class_nested ? 0 : 1);
               lvar_pop();
               mid_method = 0;
-              
             }
 
-
+command_call : operation mcall_arg             { $$ = MK_FCALL($1, $2);    }
+             | initial '.' operation mcall_arg { $$ = MK_CALL($1, $3, $4); }
 
 method_call : operation LPAREN mcall_args RPAREN             { $$ = MK_FCALL($1, $3);    }
             | initial '.' operation LPAREN mcall_args LPAREN { $$ = MK_CALL($1, $3, $5); }
@@ -221,9 +229,30 @@ method_call : operation LPAREN mcall_args RPAREN             { $$ = MK_FCALL($1,
             | initial COLONS operation LPAREN mcall_args RPAREN
               { $$ = MK_CALL($1, $3, $5);  }
 
-lhs       : variable { $$ = assign_variable($1, 0); }
-          | initial '.' IDENTIFIER { $$ = assign_attribute($1, $3, 0); }
-          | initial '.' CONSTANT   { $$ = assign_attribute($1, $3, 0); }
+mlhs_block  : multi_begin { $$ = MK_MASSIGN(MK_LIST($1), 0); }
+            | multi_begin multi_end
+              {
+                $$ = MK_MASSIGN(concat_list(MK_LIST($1), $2), 0); 
+              }
+
+multi_begin : lhs ','
+
+multi_end   : lhs                 { $$ = MK_LIST($1);         }
+            | multi_end ',' lhs   { $$ = append_list($1, $3); } 
+
+/* Left side of SGL_EQUAL token */
+lhs         : variable { $$ = assign_variable($1, 0); }
+            | initial '.' IDENTIFIER { $$ = assign_attribute($1, $3, 0); }
+            | initial '.' CONSTANT   { $$ = assign_attribute($1, $3, 0); }
+
+/* Right side of SGL_EQUAL token */
+rhs         : arguments
+              {
+                if($1 && $1->node_next == 0)
+                  $$ = $1->node_head;
+                else
+                  $$ = $1;
+              }
 
 
 /* Control Flow (IF, ELSE, THEN etc) */
@@ -253,6 +282,7 @@ argument  : initial { $$ = $1; }
           | argument '&' argument    { $$ = perform_op($1, '&', 1, $3);    }
           | argument '|' argument    { $$ = perform_op($1, '|', 1, $3);    }
           | argument COMP argument   { $$ = perform_op($1, COMP, 1, $3);   }
+          | argument DBL_EQUAL argument { $$ = perform_op($1, DBL_EQUAL, 1, $3);  }
           | initial '[' opt_args opt_newline ']' ASSIGN_OP argument
 
 arguments : argument { $$ = MK_LIST($1); }
@@ -286,8 +316,7 @@ association  : argument ASSOCIATION argument { $$ = append_list(MK_LIST($1), $3)
 associations : association
              | associations ',' association  { $$ = concat_list($1, $3);          }
 
-association_list : /* blank list */
-                 | associations comma_nl { $$ = $1; }
+association_list : associations comma_nl { $$ = $1; }
 
 
 /* Array */
@@ -360,7 +389,7 @@ NODE* perform_op(NODE* reciever, ID opsymbol, int has_arg, NODE* arg1)
 
 NODE* create_node(NodeTypes type, NODE* arg1, NODE* arg2, NODE* arg3)
 {
-  printf("[create_node] of type %d\n", type);
+  printf("[create_node] of type %d\n", type + 56); // + line number for lookup
   if(arg1) printf("\targ1: %d\n", arg1);
   if(arg2) printf("\targ2: %d\n", arg2);
   if(arg3) printf("\targ3: %d\n", arg3);

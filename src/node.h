@@ -42,6 +42,8 @@ typedef struct Node
 /* accessors for node values */
 #define node_literal Value1.literal
 
+#define node_value Value2.node
+
 // list templating
 #define node_head Value1.node
 #define node_end  Value2.node

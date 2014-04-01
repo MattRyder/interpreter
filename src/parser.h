@@ -64,5 +64,4 @@ static struct local_vtable *lvtbl;
 #define MK_DEFINITION(i,a,d,p)  create_node(NODE_DEFINITION, p, i, MK_RBFUNC(a, d))
 #define MK_BLOCK(arg)           create_node(NODE_BLOCK, arg, 0, 0)
 #define MK_NLNODE(node)         create_node(NODE_NEWLINE, 0, 0, node)
-#define MK_RETURN(ret_args)    create_node(NODE_RETURN, ret_args, 0, 0)
-
+#define MK_MASSIGN(lvar, val)  create_node(NODE_MASGN, lvar, 0, val)
