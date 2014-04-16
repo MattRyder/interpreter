@@ -22,7 +22,7 @@ typedef struct Node
   union
   {
     struct Node *node;
-    //ID id;
+    ID id;
     //VAL val;
     VAL length;
   } Value2;
@@ -41,8 +41,14 @@ typedef struct Node
 
 /* accessors for node values */
 #define node_literal Value1.literal
+#define node_firstval Value1.val
 
 #define node_value Value2.node
+
+// CALL reciever, op, args
+#define node_reciever Value1.node
+#define node_opid Value2.id
+#define node_arguments Value3.node
 
 // list templating
 #define node_head Value1.node

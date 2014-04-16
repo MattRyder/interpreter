@@ -4,7 +4,7 @@
 // the list that holds all objects alloc'd
 RBValue* object_list = 0;
 
-VAL *stack_start;
+VAL*   stack_start;
 static RBValue** heap_ptr;
 
 static int heap_length = 0;
@@ -20,11 +20,10 @@ static uint64_t allocated_bytes = 0;
 
 void init_stack()
 {
-  VAL start;
-  stack_start = &start;
+  stack_start = malloc(sizeof(VAL));
 }
 
-void init_heap()
+void init_gc()
 {
   init_stack();
   add_heaps();
@@ -37,7 +36,6 @@ RBBase* create_obj()
   // check if we've got heap space
   if(object_list)
   {
-    printf("[INFO] Free space available in object_list\n");
     new_obj = (RBBase*)object_list;
     object_list = object_list->type.free.nextptr;
     return new_obj;
@@ -51,6 +49,31 @@ RBBase* create_obj()
   }
 }
 
+RBString* create_string(char* node_str)
+{
+  RBString* str = (RBString*)create_obj();
+  str->base.flags = CF_STRING;
+  
+  str->length = strlen(node_str);
+  str->ptr = rballoc_multi(sizeof(char), str->length);
+
+  if(str->ptr)
+    memcpy(str->ptr, node_str, str->length);
+
+  // null the string
+  str->ptr[str->length] = '\0';
+  return str;
+}
+
+RBNumber* create_number(uint32_t prim_num)
+{
+  RBNumber* num = (RBNumber*)create_obj();
+  num->base.flags = CF_NUMBER;
+
+  num->value = prim_num;
+  return num;
+}
+
 void add_heaps()
 {
   RBValue *ptr, *ptr_end;
@@ -61,11 +84,11 @@ void add_heaps()
     heap_length += HEAP_INCREMENT;
     if(heap_used > 0)
     {
-      heap_ptr = realloc(heap_ptr, sizeof(RBValue) * heap_length);
+      heap_ptr = (RBValue**)realloc(heap_ptr, sizeof(RBValue) * heap_length);
     }
     else 
     {
-      heap_ptr = malloc(sizeof(RBValue) * heap_length);
+      heap_ptr = (RBValue**)malloc(sizeof(RBValue) * heap_length);
     }
 
     if(heap_ptr == 0)
@@ -74,8 +97,8 @@ void add_heaps()
       return;
     }
   }
-
-  ptr = heap_ptr[heap_used++] = malloc(sizeof(RBValue) * HEAP_SLOTS);
+  
+  ptr = heap_ptr[heap_used++] = (RBValue*)malloc((2 * sizeof(RBValue)) * HEAP_SLOTS );
   ptr_end = ptr + HEAP_SLOTS;
   if(heap_ptr == 0)
   {
@@ -116,4 +139,19 @@ void* rballoc(uint64_t size)
 
   return ptr;
 }
+
+// Allocate mem for <type> * <num>
+void* rballoc_multi(size_t type, uint64_t num)
+{
+  void* ptr;
+  uint64_t req_malloc_size = type * num;
+
+  ptr = rballoc(req_malloc_size);
+
+  if(!ptr)
+    printf("[CRITICAL] Failed to rballoc_multi!\n");
+  
+  return ptr;
+}
+
 

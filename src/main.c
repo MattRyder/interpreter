@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 
   vm_init();
   vm_opts(argc, argv);
-
+  vm_exec();
 
 
   printf("Done!\n");

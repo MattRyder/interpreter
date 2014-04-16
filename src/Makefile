@@ -2,10 +2,12 @@ BUILD_DIR = ../build
 EXE 			= interpreter
 
 CC   			= clang
-CFLAGS 		= -c -o $(BUILD_DIR)/$@
+CFLAGS 		= -c -o $(BUILD_DIR)/$@ -Wno-int-conversion
 LDFLAGS   = -o $(BUILD_DIR)/$(EXE) # "linker flags", yeah
 
-OBJS 			= parser.tab.o lex.yy.o rbcore.o gc.o vm.o main.o
+OBJS 			= parser.tab.o lex.yy.o rbcore.o \
+						gc.o vm.o main.o evaluator.o   \
+						symbol_table.o
 
 .PHONY: all clean
 

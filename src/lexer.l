@@ -11,6 +11,7 @@ int yyerror(char*);
 
 void fp();
 void p(char* type, char* text);
+RBNumber* create_rbnumeric(char* num_str, int base);
 
 // root node that holds the parse tree
 NODE *parse_tree = 0;
@@ -181,11 +182,11 @@ FLOATS              [+-]?[0-9]+\.[0-9]*
 {HEX_CHARS}       { yylval.val = strtol(yytext, NULL, 16); return INTEGER; }
 {OCTAL_CHARS}     { yylval.val = strtol(yytext, NULL,  8); return INTEGER; }
 {FLOATS}          { yylval.dbl = atof(yytext); return FLOAT;               }
-{INTEGERS}        { yylval.val = strtol(yytext, NULL, 10); return INTEGER; }
+{INTEGERS}        { yylval.val = create_rbnumeric(yytext, 10); return INTEGER; }
 
 <IN_STRING>{
 {DBL_QUOTE}       { BEGIN(0); return STRING; }
-[^"]+             { yylval.str = yytext; yymore(); }
+[^"]+             { yylval.val = create_string(yytext); yymore(); }
 <<EOF>>           { yyerror("unterminated string"); return 0; }
 }
 
@@ -268,6 +269,12 @@ FLOATS              [+-]?[0-9]+\.[0-9]*
 .                 { return yyerror("unrecognised char"); }
 <<EOF>>           { return 0; }
 %%
+
+RBNumber* create_rbnumeric(char* num_str, int base)
+{
+  uint32_t num = strtol(num_str, NULL, base);
+  return create_number(num);
+}
 
 void p(char* type, char* text)
 {

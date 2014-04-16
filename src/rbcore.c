@@ -3,6 +3,7 @@
 #include "rbcore.h"
 #include "node.h"
 
+
 int base_argc;
 char **base_argv;
 
@@ -10,7 +11,7 @@ char *script_filename;
 
 NODE* parse_file(char* filename);
 
-void parse_argv(int argc, char **argv)
+NODE* parse_argv(int argc, char **argv)
 {
   NODE *tree;
   base_argc = argc;
@@ -20,6 +21,7 @@ void parse_argv(int argc, char **argv)
 
   // TODO: parse any params here
   tree = (NODE*)parse_file(script_filename);
+  return tree;
 
   //printf("%d %c %d", tree->Value1.node, tree->Value2.node, tree->Value3.node);
 }

@@ -102,7 +102,7 @@ rbprog    : /* boot */
 
 expr_block : exprs opt_terms
 
-exprs      : expr             { $$ = MK_NLNODE($1); }
+exprs      : expr             { $$ = $1; }
            | exprs terms expr { $$ = append_block($1, MK_NLNODE($3)); }
            | error exprs      { $$ = $2; } /* handle errs at expr level */
     
@@ -162,7 +162,7 @@ operator  : UPLUS        { $$ = UPLUS;   }
 literal   : SYMB_START symbol { $$ = $2; }
           | numeral 
 
-initial   : literal
+initial   : literal                       { $$ = MK_LITERAL($1);    }
           | method_call
           | initial COLONS cls_name       { $$ = MK_COLONS($1, $3); }
           | STRING                        { $$ = MK_STRING($1);     }
@@ -364,7 +364,7 @@ void init_locals()
 
 // calls the bison yyparse fn
 // and return the parse tree
-NODE* rb_parsefile(char *ruby_script)
+NODE* parse_file(char *ruby_script)
 {
   yyin = (int)fopen(ruby_script, "r");
 
@@ -373,13 +373,9 @@ NODE* rb_parsefile(char *ruby_script)
     return parse_tree;
   
   printf("yyparse failed\n");
+
   // failed somewhere, return null!
   return 0;
-}
-
-NODE* parse_file(char *filename)
-{
-  return rb_parsefile(filename);
 }
 
 NODE* perform_op(NODE* reciever, ID opsymbol, int has_arg, NODE* arg1)
@@ -389,18 +385,17 @@ NODE* perform_op(NODE* reciever, ID opsymbol, int has_arg, NODE* arg1)
 
 NODE* create_node(NodeTypes type, NODE* arg1, NODE* arg2, NODE* arg3)
 {
-  printf("[create_node] of type %d\n", type + 56); // + line number for lookup
-  if(arg1) printf("\targ1: %d\n", arg1);
-  if(arg2) printf("\targ2: %d\n", arg2);
-  if(arg3) printf("\targ3: %d\n", arg3);
-
-  NODE *new_node = (NODE*)create_obj();
+  NODE* new_node = (NODE*)create_obj();
   new_node->Value1.node = arg1;
   new_node->Value2.node = arg2;
   new_node->Value3.node = arg3;
 
-  new_node->flags |= NFLAG_NODE;
+  new_node->flags = type;
 
+  printf("[INFO] Created node of type %d at 0x%x\n", type, new_node); 
+  if(arg1) printf("\targ1: %x\n", new_node->Value1.node);
+  if(arg2) printf("\targ2: %x\n", new_node->Value2.node);
+  if(arg3) printf("\targ3: %x\n", new_node->Value3.node);
   return new_node;
 }
 
