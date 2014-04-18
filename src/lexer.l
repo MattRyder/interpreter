@@ -13,6 +13,11 @@ void fp();
 void p(char* type, char* text);
 RBNumber* create_rbnumeric(char* num_str, int base);
 
+// defined in gc.c
+RBString* create_string(char* node_str);
+RBNumber* create_number(uint32_t prim_num);
+
+
 // root node that holds the parse tree
 NODE *parse_tree = 0;
 

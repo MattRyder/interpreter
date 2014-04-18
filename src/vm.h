@@ -44,4 +44,8 @@ NODE* parse_argv(int argc, char **argv);
 VAL eval_tree(NODE* root_node);
 VAL vm_evaluate_node(NODE* node);
 
+VAL vm_methodcall(NODE* reciever, NODE* oper, uint32_t argc);
+void add_method(RBClass* mclass, NODE* defn, uint32_t mbody, int exeption_flag);
+NODE* get_method_from_class(RBClass* mclass, uint32_t method_id, RBClass** method_origin);
+
 #endif

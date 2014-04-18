@@ -61,7 +61,7 @@ uint32_t insert_entry(SYMBOL_TABLE* sym_table, char* key, char* value)
   return 1;
 }
 
-uint64_t lookup_value(SYMBOL_TABLE* sym_table, char* key, char* value)
+uint32_t lookup_value(SYMBOL_TABLE* sym_table, char* key, char* value)
 {
   uint64_t hashed_value = hash(key, sym_table->entry_count);
   ST_ENTRY* entry = find_entry(sym_table, key, hashed_value);
@@ -90,20 +90,15 @@ ST_ENTRY* find_entry(SYMBOL_TABLE* sym_table, char* key, uint64_t hash_val)
 // returns a value in the hash table (as given by table_max)
 uint64_t hash(register char* keyvalue, uint32_t table_max)
 {
-  // foreach char in string
-  // hash_val = hash_val * prime + char
-
   register uint32_t hash_val = 0;
   register uint32_t str_char = 0;
 
+  // foreach char in string
+  // hash_val = hash_val * prime + char
   while((str_char = *keyvalue++) != '\0') {
     hash_val = hash_val * 701;
     hash_val ^= str_char;
   }
-
-  // ensure absolute value
-  if(hash_val < 0)
-    hash_val = -hash_val;
 
   return hash_val % table_max;
 }

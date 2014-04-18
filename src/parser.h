@@ -36,7 +36,7 @@ struct local_vtable
 {
   ID* table;
   uint32_t nonfree; //prevent vtbl being freed
-  uint32_t cnt;
+  uint32_t cnt;     //current table
   struct local_vtable *previous;
 };
 
@@ -61,7 +61,7 @@ static struct local_vtable *lvtbl;
 #define MK_CLASSREF() (cur_clsref = create_node(NODE_CONSTREF, 0, 0, cur_clsref))
 #define MK_SCOPE(block)         create_node(NODE_SCOPE, lvar_table(), block, cur_clsref)
 #define MK_RBFUNC(block1, block2) MK_SCOPE(append_block(block1, block2))
-#define MK_DEFINITION(i,a,d,p)  create_node(NODE_DEFINITION, p, i, MK_RBFUNC(a, d))
+#define MK_DEFINITION(fname, args, body, nested)  create_node(NODE_DEFINITION, nested, fname, MK_RBFUNC(args, body))
 #define MK_BLOCK(arg)           create_node(NODE_BLOCK, arg, 0, 0)
 #define MK_NLNODE(node)         create_node(NODE_NEWLINE, 0, 0, node)
 #define MK_MASSIGN(lvar, val)  create_node(NODE_MASGN, lvar, 0, val)

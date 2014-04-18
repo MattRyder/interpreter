@@ -12,7 +12,7 @@ typedef struct Node
   union 
   {
     struct Node *node;
-    //ID id; possibly unused
+    ID exflags;
     //ID *table; unused
     VAL val;
     VAL (*func)();
@@ -45,6 +45,7 @@ typedef struct Node
 
 #define node_value Value2.node
 
+
 // CALL reciever, op, args
 #define node_reciever Value1.node
 #define node_opid Value2.id
@@ -55,6 +56,10 @@ typedef struct Node
 #define node_end  Value2.node
 #define node_next Value3.node
 #define node_length Value2.length
+
+// method definition and exception flags
+#define node_definition Value3.node
+#define node_exflags  Value1.exflags
 
 
 /* Node types for the AST */

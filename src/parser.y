@@ -4,7 +4,7 @@
 #include "parser.h"
 %}
 
-%error-verbose 
+%error-verbose
 
 /* token data types */
 %union {
@@ -55,9 +55,9 @@
 %type <id>   symbol operation cls_name fname variable
 %type <id>   operator 
 
-%type <node> mcall_arg mcall_args ret_args opt_args rhs
+%type <node> mcall_arg mcall_args ret_args rhs
 %type <node> expr exprs expr_block initial argument arguments lhs method_call command_call
-%type <node> fml_option fml_arg fml_args fml_list
+%type <node> fml_arg fml_args fml_list
 %type <node> mlhs_block multi_end multi_begin
 %type <node> association associations association_list array
 %type <node> if_elsif else 
@@ -87,10 +87,15 @@
 %token<id> ASSIGN_OP      /* *=, +=, -=, /= */
 
 /* operator associativity */
-%left '+' '-'
-%left '*' '/'
-%right UPLUS UMINUS PWR
-%nonassoc COMP DBL_EQUAL NOT_EQUAL MATCH NOT_MATCH
+%left '*' '/' '|' '&' '^' '%'
+%left AND BITWISE_AND OR BITWISE_OR
+%left '<' '>' LEQ GEQ LSHIFT RSHIFT
+
+%right '!' '~'
+%right OP_ASSIGN UPLUS UMINUS PWR NOT SGL_EQUAL
+
+%nonassoc COLONS
+%nonassoc COMP DBL_EQUAL NOT_EQUAL
 
 %%
 
@@ -102,10 +107,10 @@ rbprog    : /* boot */
 
 expr_block : exprs opt_terms
 
+
 exprs      : expr             { $$ = $1; }
            | exprs terms expr { $$ = append_block($1, MK_NLNODE($3)); }
            | error exprs      { $$ = $2; } /* handle errs at expr level */
-    
 
 expr      : associations { $$ = MK_HASH($1); }
           | RETURN ret_args
@@ -123,44 +128,125 @@ expr      : associations { $$ = MK_HASH($1); }
           | command_call
           | argument
 
+
+command_call : operation mcall_arg             { $$ = MK_FCALL($1, $2);    }
+             | initial '.' operation mcall_arg { $$ = MK_CALL($1, $3, $4); }
+
+mlhs_block  : multi_begin { $$ = MK_MASSIGN(MK_LIST($1), 0); }
+            | multi_begin multi_end
+              {
+                $$ = MK_MASSIGN(concat_list(MK_LIST($1), $2), 0); 
+              }
+
+multi_begin : lhs ','
+
+multi_end   : lhs                 { $$ = MK_LIST($1);         }
+            | multi_end ',' lhs   { $$ = append_list($1, $3); }
+
+/* Left side of SGL_EQUAL token */
+lhs         : variable               { $$ = assign_variable($1, 0);      }
+            | initial '.' IDENTIFIER { $$ = assign_attribute($1, $3, 0); }
+            | initial '.' CONSTANT   { $$ = assign_attribute($1, $3, 0); }
+
 /* Token -> non-terminal symbol definitions */
 cls_name  : IDENTIFIER { yyerror("Class name must be a constant variable"); }
           | CONSTANT
 
+/* function name */
 fname     : CONSTANT | IDENTIFIER 
           | operator { $$ = $1;  }
 
 variable  : GLOBAL_VAR | INSTANCE_VAR | IDENTIFIER | CONSTANT
           | NIL  { $$ = NIL;   }
           | SELF { $$ = SELF;  }
- 
+
+/* symbol literal or a numeric data type */
+literal   : SYMB_START symbol { $$ = $2; }
+          | numeral
+
+/* a valid symbol id, the part after colons (e.g. :mysymbol) */
 symbol    : fname | GLOBAL_VAR | INSTANCE_VAR
 
 operation : CONSTANT | IDENTIFIER
  
 numeral   : INTEGER | FLOAT
 
-operator  : UPLUS        { $$ = UPLUS;   }
-          | UMINUS       { $$ = UMINUS;  }
-          | '|'          { $$ = '|';     }
-          | '^'          { $$ = '^';     }
-          | '&'          { $$ = '&';     }
-          | '/'          { $$ = '/';     }
-          | '%'          { $$ = '%';     }
-          | '*'          { $$ = '*';     }
-          | PWR          { $$ = PWR;     }
-          | ARRAY        { $$ = ARRAY;   }
+/* Put operators on the AST for function calling later */
+operator  : UPLUS        { $$ = UPLUS;        }
+          | UMINUS       { $$ = UMINUS;       }
+          | '|'          { $$ = '|';          }
+          | '^'          { $$ = '^';          }
+          | '&'          { $$ = '&';          }
+          | '/'          { $$ = '/';          }
+          | '%'          { $$ = '%';          }
+          | '*'          { $$ = '*';          }
+          | PWR          { $$ = PWR;          }
+          | ARRAY        { $$ = ARRAY;        }
           | ARRAY_ASSIGN { $$ = ARRAY_ASSIGN; }
-          | DBL_EQUAL    { $$ = DBL_EQUAL; }
-          | MATCH        { $$ = MATCH; }
-          | LEQ          { $$ = LEQ; }
-          | GEQ          { $$ = GEQ; }
-          | LSHIFT       { $$ = LSHIFT; }
-          | RSHIFT       { $$ = RSHIFT; }
-          | COLONS       { $$ = COLONS; }
+          | DBL_EQUAL    { $$ = DBL_EQUAL;    }
+          | MATCH        { $$ = MATCH;        }
+          | LEQ          { $$ = LEQ;          }
+          | GEQ          { $$ = GEQ;          }
+          | LSHIFT       { $$ = LSHIFT;       }
+          | RSHIFT       { $$ = RSHIFT;       }
+          | COLONS       { $$ = COLONS;       }
 
-literal   : SYMB_START symbol { $$ = $2; }
-          | numeral 
+/* Arguments: return, method params, etc */
+argument   : variable SGL_EQUAL argument { $$ = assign_variable($1, $3);           }
+           | argument UPLUS argument     { $$ = perform_op($1, '+', 1, $3);        }
+           | argument UMINUS argument    { $$ = perform_op($1, '-', 1, $3);        }
+           | argument  '/' argument      { $$ = perform_op($1, '/', 1, $3);        }
+           | argument '*' argument       { $$ = perform_op($1, '*', 1, $3);        }
+           | argument '%' argument       { $$ = perform_op($1, '%', 1, $3);        }
+           | argument PWR argument       { $$ = perform_op($1, PWR, 1, $3);        }
+           | UPLUS argument              { $$ = perform_op($2, UPLUS, 0, 0);       }
+           | UMINUS argument             { $$ = perform_op($2, UMINUS, 0, 0);      }
+           | argument '&' argument       { $$ = perform_op($1, '&', 1, $3);        }
+           | argument '|' argument       { $$ = perform_op($1, '|', 1, $3);        }
+           | argument COMP argument      { $$ = perform_op($1, COMP, 1, $3);       }
+           | argument DBL_EQUAL argument { $$ = perform_op($1, DBL_EQUAL, 1, $3);  }
+           | initial                     { $$ = $1;                                }   
+
+mcall_args : /* empty */ { $$ = 0; }
+           | mcall_arg opt_newline
+
+mcall_arg  : arguments
+           | associations               { $$ = MK_LIST(MK_HASH($1));         }
+           | arguments ',' associations { $$ = append_list($1, MK_HASH($3)); }
+
+
+mcall_args : mcall_arg opt_newline
+
+mcall_arg  : arguments
+           | associations               { $$ = MK_LIST(MK_HASH($1));         }
+           | arguments ',' associations { $$ = append_list($1, MK_HASH($3)); }
+
+arguments  : argument               { $$ = MK_LIST($1);         }
+           | arguments ',' argument { $$ = append_list($1, $3); }
+
+
+/* Array */
+array     : /* zero args */ { $$ = 0; }
+          | arguments comma_nl
+
+
+/* Right side of SGL_EQUAL token */
+rhs        : arguments
+              {
+                if($1 && $1->node_next == 0)
+                  $$ = $1->node_head;
+                else
+                  $$ = $1;
+              }
+
+
+ret_args  : mcall_args 
+          {
+            if ($1->flags == NODE_ARRAY && $1->node_next == 0)
+              $$ = $1->node_head;
+            else
+              $$ = $1;
+          }
 
 initial   : literal                       { $$ = MK_LITERAL($1);    }
           | method_call
@@ -220,39 +306,6 @@ initial   : literal                       { $$ = MK_LITERAL($1);    }
               mid_method = 0;
             }
 
-command_call : operation mcall_arg             { $$ = MK_FCALL($1, $2);    }
-             | initial '.' operation mcall_arg { $$ = MK_CALL($1, $3, $4); }
-
-method_call : operation LPAREN mcall_args RPAREN             { $$ = MK_FCALL($1, $3);    }
-            | initial '.' operation LPAREN mcall_args LPAREN { $$ = MK_CALL($1, $3, $5); }
-            | initial '.' operation { $$ = MK_CALL($1, $3, 0); }
-            | initial COLONS operation LPAREN mcall_args RPAREN
-              { $$ = MK_CALL($1, $3, $5);  }
-
-mlhs_block  : multi_begin { $$ = MK_MASSIGN(MK_LIST($1), 0); }
-            | multi_begin multi_end
-              {
-                $$ = MK_MASSIGN(concat_list(MK_LIST($1), $2), 0); 
-              }
-
-multi_begin : lhs ','
-
-multi_end   : lhs                 { $$ = MK_LIST($1);         }
-            | multi_end ',' lhs   { $$ = append_list($1, $3); } 
-
-/* Left side of SGL_EQUAL token */
-lhs         : variable { $$ = assign_variable($1, 0); }
-            | initial '.' IDENTIFIER { $$ = assign_attribute($1, $3, 0); }
-            | initial '.' CONSTANT   { $$ = assign_attribute($1, $3, 0); }
-
-/* Right side of SGL_EQUAL token */
-rhs         : arguments
-              {
-                if($1 && $1->node_next == 0)
-                  $$ = $1->node_head;
-                else
-                  $$ = $1;
-              }
 
 
 /* Control Flow (IF, ELSE, THEN etc) */
@@ -268,61 +321,12 @@ then    : THEN
         | term
         | term THEN
 
-/* Arguments: return, method params, etc */
-argument  : initial { $$ = $1; }     
-          | variable SGL_EQUAL argument    { $$ = assign_variable($1, $3); }
-          | argument UPLUS argument  { $$ = perform_op($1, '+', 1, $3);    }
-          | argument UMINUS argument { $$ = perform_op($1, '-', 1, $3);    }
-          | argument  '/' argument   { $$ = perform_op($1, '/', 1, $3);    }
-          | argument '*' argument    { $$ = perform_op($1, '*', 1, $3);    }
-          | argument '%' argument    { $$ = perform_op($1, '%', 1, $3);    }
-          | argument PWR argument    { $$ = perform_op($1, PWR, 1, $3);    }
-          | UPLUS argument           { $$ = perform_op($2, UPLUS, 0, 0);   }
-          | UMINUS argument          { $$ = perform_op($2, UMINUS, 0, 0);  }
-          | argument '&' argument    { $$ = perform_op($1, '&', 1, $3);    }
-          | argument '|' argument    { $$ = perform_op($1, '|', 1, $3);    }
-          | argument COMP argument   { $$ = perform_op($1, COMP, 1, $3);   }
-          | argument DBL_EQUAL argument { $$ = perform_op($1, DBL_EQUAL, 1, $3);  }
-          | initial '[' opt_args opt_newline ']' ASSIGN_OP argument
 
-arguments : argument { $$ = MK_LIST($1); }
-          | arguments ',' argument { $$ = append_list($1, $3); }
- 
-ret_args  : mcall_args 
-          {
-            if ($1->flags == NODE_ARRAY && $1->node_next == 0)
-            {
-              $$ = $1->node_head;
-            } else
-            {
-              $$ = $1;
-            }
-          }
-
-mcall_args : /* empty */ { $$ = 0; }
-           | mcall_arg opt_newline
-
-mcall_arg  : arguments
-           | associations { $$ = MK_LIST(MK_HASH($1)); }
-           | arguments ',' associations { $$ = append_list($1, MK_HASH($3)); }
-
-opt_args   : /* zero args */ { $$ = 0; }
-           | arguments
-
-
-/* Associations (i.e. the => symbol) */
-association  : argument ASSOCIATION argument { $$ = append_list(MK_LIST($1), $3); }
-
-associations : association
-             | associations ',' association  { $$ = concat_list($1, $3);          }
-
-association_list : associations comma_nl { $$ = $1; }
-
-
-/* Array */
-array     : /* zero args */ { $$ = 0; }
-          | arguments comma_nl
-
+method_call : operation LPAREN mcall_args RPAREN             { $$ = MK_FCALL($1, $3);    }
+            | initial '.' operation LPAREN mcall_args LPAREN { $$ = MK_CALL($1, $3, $5); }
+            | initial '.' operation { $$ = MK_CALL($1, $3, 0); }
+            | initial COLONS operation LPAREN mcall_args RPAREN
+              { $$ = MK_CALL($1, $3, $5);  }
 
 /* Formal arguments of method definitions */
 fml_list   : LPAREN fml_args RPAREN { $$ = $2; }
@@ -334,8 +338,14 @@ fml_args   : /* zero args */ { $$ = MK_ARGS(0, 0, -1); }
 fml_arg    : IDENTIFIER { $$ = 1; }
            | fml_arg ',' IDENTIFIER { $$ += 1; /* inc f-arg count */ }
 
-fml_option : IDENTIFIER SGL_EQUAL argument { $$ = assign_variable($1, $3); }
 
+
+association_list : associations comma_nl { $$ = $1; }
+
+associations : association
+             | associations ',' association  { $$ = concat_list($1, $3);          }
+
+association  : argument ASSOCIATION argument { $$ = append_list(MK_LIST($1), $3); }
 
 /* Newlines and statement termination */
 comma_nl  : /* empty */
@@ -353,6 +363,7 @@ terms     : term
 
 term      : '\n'
           | ';' { yyerrok; }
+
 
 %%
 
@@ -392,10 +403,10 @@ NODE* create_node(NodeTypes type, NODE* arg1, NODE* arg2, NODE* arg3)
 
   new_node->flags = type;
 
-  printf("[INFO] Created node of type %d at 0x%x\n", type, new_node); 
-  if(arg1) printf("\targ1: %x\n", new_node->Value1.node);
-  if(arg2) printf("\targ2: %x\n", new_node->Value2.node);
-  if(arg3) printf("\targ3: %x\n", new_node->Value3.node);
+  printf("[INFO] Created node of type %d at 0x%x\n", type, (uint32_t)new_node); 
+  if(arg1) printf("\targ1: %x\n", (uint32_t)new_node->Value1.node);
+  if(arg2) printf("\targ2: %x\n", (uint32_t)new_node->Value2.node);
+  if(arg3) printf("\targ3: %x\n", (uint32_t)new_node->Value3.node);
   return new_node;
 }
 
@@ -495,7 +506,11 @@ NODE* assign_attribute(NODE* reciever, ID oper, NODE* value)
 static ID* lvar_table()
 {
   if(!lvtbl)
-    lvar_push();
+  {
+    lvtbl = malloc(sizeof(struct local_vtable));
+    lvtbl->previous = 0;
+    lvtbl->cnt = 0;
+  }
 
   lvtbl->nonfree = 1; // set as not free
   return lvtbl->table;
