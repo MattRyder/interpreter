@@ -14,7 +14,7 @@ static SCOPE *cur_scope;
 static SCOPE *top_scope;
 
 static TAG     *cur_tag;
-static RBClass *cur_class;
+static RBClass *cur_class, *class_buffer;
 
 int base_argc;
 char **base_argv;
@@ -28,6 +28,10 @@ char* usage()
   return "Usage: %s [-d] [-f filename]\n";
 }
 
+
+/* *****
+ * TAG STACK METHODS
+ * ***** */
 void PUSH_TAG() 
 {
    TAG* nw_tag = malloc(sizeof(TAG));
@@ -47,20 +51,44 @@ NODE* EXEC_TAG()
   return setjmp(cur_tag->buffer);
 }
 
+/* *****
+ * CLASS STACK METHODS
+ * ***** */
+void SAVE_CLASS(RBClass* saveable_class)
+{
+  class_buffer = saveable_class;
+}
+
+RBClass* RESTORE_CLASS()
+{
+  return class_buffer;
+}
+
+/* *****
+ * SCOPE STACK METHODS
+ * ***** */
+
+
 void vm_init()
 {
   NODE* rstate;
 
   cur_frame = malloc(sizeof(AFRAME));
-  cur_scope = malloc(sizeof(SCOPE));
-  
-  // set the global scope
-  top_scope = cur_scope;
+  cur_scope = top_scope = malloc(sizeof(SCOPE));
 
+  // boot up the gc heaps
+  init_gc();
+  
   PUSH_TAG();
   if ((rstate = EXEC_TAG()) == 0)
   {
-    
+    // create a root class object and base frame
+    cur_class = malloc(sizeof(RBClass));
+    cur_frame->base_node = (NODE*)create_obj();
+    cur_frame->base_node->flags = NODE_CONSTREF;
+    cur_frame->base_node->Value1.node = (uint32_t)cur_class;
+
+
   }
   POP_TAG();
 
@@ -90,8 +118,6 @@ void vm_exec()
   VAL result;
   NODE* rstate;
  
-  init_gc();
-  
   PUSH_TAG();
   if((rstate = EXEC_TAG()) == 0)
   {
@@ -173,6 +199,7 @@ VAL vm_evaluate_node(NODE* node)
 
     case NODE_CALL:
       printf("Evaluating NODE_CALL\n");
+      
       VAL recv = vm_evaluate_node(node->node_firstval);
       //result = vm_methodcall()
       //printf("RECIEVER: %d\n", recv->value); 

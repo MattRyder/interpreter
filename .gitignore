@@ -26,5 +26,5 @@ interpreter
 *.tab.*
 
 lex.yy.c
-testfile.rb
+src/testfile.rb
 build/

@@ -1,6 +1,7 @@
 /* parser.y */
 
 %{
+#define YYDEBUG 1
 #include "parser.h"
 %}
 
@@ -99,31 +100,29 @@
 
 %%
 
-rbprog    : /* boot */
-          {
-            init_locals(); 
-          }
-          | expr_block { parse_tree = $1; }
+rbprog    : /* boot local tables * { init_locals(); }*/
+          expr_block { parse_tree = $1; } /* then return parse_tree! */
 
 expr_block : exprs opt_terms
 
 
-exprs      : expr             { $$ = $1; }
+exprs      : /* no exprssn */ { $$ = 0;  }
+           | expr             { $$ = $1; }
            | exprs terms expr { $$ = append_block($1, MK_NLNODE($3)); }
-           | error exprs      { $$ = $2; } /* handle errs at expr level */
+           | error expr       { $$ = $2; } /* handle errs at expr level */
 
-expr      : associations { $$ = MK_HASH($1); }
+expr      : mlhs_block SGL_EQUAL rhs
+            {
+              $1->node_value = $3;
+              $$ = $1;
+            }
+          | associations { $$ = MK_HASH($1); }
           | RETURN ret_args
             {
               if(!mid_method)
                 yyerror("Cannot return from outside a method!");
               
               $$ = MK_RETURN($2);
-            }
-          | mlhs_block SGL_EQUAL rhs
-            {
-              $1->node_value = $3;
-              $$ = $1;
             }
           | command_call
           | argument
@@ -153,23 +152,9 @@ cls_name  : IDENTIFIER { yyerror("Class name must be a constant variable"); }
           | CONSTANT
 
 /* function name */
-fname     : CONSTANT | IDENTIFIER 
+fname     : CONSTANT 
+          | IDENTIFIER 
           | operator { $$ = $1;  }
-
-variable  : GLOBAL_VAR | INSTANCE_VAR | IDENTIFIER | CONSTANT
-          | NIL  { $$ = NIL;   }
-          | SELF { $$ = SELF;  }
-
-/* symbol literal or a numeric data type */
-literal   : SYMB_START symbol { $$ = $2; }
-          | numeral
-
-/* a valid symbol id, the part after colons (e.g. :mysymbol) */
-symbol    : fname | GLOBAL_VAR | INSTANCE_VAR
-
-operation : CONSTANT | IDENTIFIER
- 
-numeral   : INTEGER | FLOAT
 
 /* Put operators on the AST for function calling later */
 operator  : UPLUS        { $$ = UPLUS;        }
@@ -205,7 +190,7 @@ argument   : variable SGL_EQUAL argument { $$ = assign_variable($1, $3);        
            | argument '|' argument       { $$ = perform_op($1, '|', 1, $3);        }
            | argument COMP argument      { $$ = perform_op($1, COMP, 1, $3);       }
            | argument DBL_EQUAL argument { $$ = perform_op($1, DBL_EQUAL, 1, $3);  }
-           | initial                     { $$ = $1;                                }   
+           | initial                     { $$ = $1;                                }
 
 mcall_args : /* empty */ { $$ = 0; }
            | mcall_arg opt_newline
@@ -214,21 +199,8 @@ mcall_arg  : arguments
            | associations               { $$ = MK_LIST(MK_HASH($1));         }
            | arguments ',' associations { $$ = append_list($1, MK_HASH($3)); }
 
-
-mcall_args : mcall_arg opt_newline
-
-mcall_arg  : arguments
-           | associations               { $$ = MK_LIST(MK_HASH($1));         }
-           | arguments ',' associations { $$ = append_list($1, MK_HASH($3)); }
-
 arguments  : argument               { $$ = MK_LIST($1);         }
            | arguments ',' argument { $$ = append_list($1, $3); }
-
-
-/* Array */
-array     : /* zero args */ { $$ = 0; }
-          | arguments comma_nl
-
 
 /* Right side of SGL_EQUAL token */
 rhs        : arguments
@@ -239,7 +211,6 @@ rhs        : arguments
                   $$ = $1;
               }
 
-
 ret_args  : mcall_args 
           {
             if ($1->flags == NODE_ARRAY && $1->node_next == 0)
@@ -248,15 +219,20 @@ ret_args  : mcall_args
               $$ = $1;
           }
 
-initial   : literal                       { $$ = MK_LITERAL($1);    }
-          | method_call
+
+/* Array */
+array     : /* zero args */ { $$ = 0; }
+          | arguments comma_nl
+
+initial   : method_call 
+          | literal                       { $$ = MK_LITERAL($1);    }
           | initial COLONS cls_name       { $$ = MK_COLONS($1, $3); }
           | STRING                        { $$ = MK_STRING($1);     }
+          | '[' array ']'   { $$ = ($2 == 0) ? MK_ZEROARRAY() : $2; }
           | RETURN                        { $$ = MK_RETURN(0);      }
           | RETURN LPAREN RPAREN          { $$ = MK_RETURN(0);      }
           | RETURN ret_args               { $$ = MK_RETURN($2);     }
           | RETURN LPAREN ret_args RPAREN { $$ = MK_RETURN($3);     }
-          | '[' array ']'   { $$ = ($2 == 0) ? MK_ZEROARRAY() : $2; }
           | '{' association_list '}'      { $$ = MK_HASH($2);       }
           | CLASS cls_name
             {
@@ -307,8 +283,11 @@ initial   : literal                       { $$ = MK_LITERAL($1);    }
             }
 
 
-
 /* Control Flow (IF, ELSE, THEN etc) */
+then    : THEN
+        | term
+        | term THEN
+
 if_elsif: else
         | ELSIF expr then
           expr_block
@@ -317,9 +296,6 @@ if_elsif: else
 else    : /* no opt else */ { $$ = 0;  }
         | ELSE expr_block   { $$ = $2; }
 
-then    : THEN
-        | term
-        | term THEN
 
 
 method_call : operation LPAREN mcall_args RPAREN             { $$ = MK_FCALL($1, $3);    }
@@ -327,6 +303,21 @@ method_call : operation LPAREN mcall_args RPAREN             { $$ = MK_FCALL($1,
             | initial '.' operation { $$ = MK_CALL($1, $3, 0); }
             | initial COLONS operation LPAREN mcall_args RPAREN
               { $$ = MK_CALL($1, $3, $5);  }
+
+
+/* symbol literal or a numeric data type */
+literal   : SYMB_START symbol { $$ = $2; }
+          | numeral
+
+/* a valid symbol id, the part after colons (e.g. :mysymbol) */
+symbol    : fname | GLOBAL_VAR | INSTANCE_VAR
+
+numeral   : INTEGER | FLOAT
+ 
+variable  : IDENTIFIER | GLOBAL_VAR | INSTANCE_VAR | CONSTANT
+          | NIL  { $$ = NIL;   }
+          | SELF { $$ = SELF;  }
+
 
 /* Formal arguments of method definitions */
 fml_list   : LPAREN fml_args RPAREN { $$ = $2; }
@@ -347,10 +338,9 @@ associations : association
 
 association  : argument ASSOCIATION argument { $$ = append_list(MK_LIST($1), $3); }
 
+operation : IDENTIFIER | CONSTANT
+
 /* Newlines and statement termination */
-comma_nl  : /* empty */
-          | '\n'
-          | ','
 
 opt_terms   : /* empty */
             | terms
@@ -358,12 +348,15 @@ opt_terms   : /* empty */
 opt_newline : /* empty */
             | '\n'
 
+comma_nl  : /* empty */
+          | '\n'
+          | ','
+
+term      : ';'
+          | '\n' { yyerrok; }
+
 terms     : term
           | terms ';' { yyerrok; }
-
-term      : '\n'
-          | ';' { yyerrok; }
-
 
 %%
 
@@ -371,6 +364,7 @@ void init_locals()
 {
   printf("BOOTING INIT LOCALS\n");
   lvar_push();
+  MK_CLASSREF();
 }
 
 // calls the bison yyparse fn

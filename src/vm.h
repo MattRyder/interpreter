@@ -12,7 +12,9 @@
 
 // Activation record / stack frame
 typedef struct ActivationFrame {
-  RBClass *prev_class; //calling class
+  RBClass* prev_class; //calling class
+  NODE* base_node;     //base node from ast
+  struct ActivationFrame* prev_frame;
 } AFRAME;
 
 typedef struct Scope {
