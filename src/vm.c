@@ -103,6 +103,11 @@ void vm_opts(int argc, char** argv)
   {
     //process the argv options
     parse_tree = parse_argv(argc, argv);
+
+    if(parse_tree == 0 || parse_tree == 1)
+    {
+      exit(parse_tree);
+    }
   }
   POP_TAG();
 
@@ -121,12 +126,6 @@ void vm_exec()
   PUSH_TAG();
   if((rstate = EXEC_TAG()) == 0)
   {
-    if(parse_tree == 0)
-    {
-      printf("[ERROR] Failed to parse %s\n", script_filename);
-      return;
-    }
-
     printf("[INFO] About to evaluate AST\n\n");
     result = eval_tree(parse_tree);
     printf("\n\n%d\n", result);

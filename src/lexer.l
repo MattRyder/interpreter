@@ -172,7 +172,7 @@ FLOATS              [+-]?[0-9]+\.[0-9]*
 {COLONS}           { return COLONS;     }
 {SYMBOL_START}     { return SYMB_START; }
 
-"#".*              ;
+"#".*\n            ;
 [  \t\f\v]         ;
 
 {BEGIN_CMNT_BLOCK}      { BEGIN(IN_BEGIN_CMNT);       }
@@ -199,12 +199,6 @@ FLOATS              [+-]?[0-9]+\.[0-9]*
 {SGL_QUOTE}       { BEGIN(0); return STRING; }
 [^']+             { yylval.str = yytext; yymore(); }
 <<EOF>>           { yyerror("unterminated string"); return 0; }
-}
-
-<IN_BACKTICK>{
-{BACKTICK}        { BEGIN(0); return DXSTRING; }
-[^`]+             { yylval.str = yytext; yymore(); }
-<<EOF>>           { yyerror("unterminated backtick"); return 0; }
 }
 
 <IN_BEGIN_CMNT>{

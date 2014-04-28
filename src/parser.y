@@ -48,13 +48,12 @@
        WHILE
        YIELD
 
-%token <id>    CONSTANT IDENTIFIER GLOBAL_VAR INSTANCE_VAR
+%token <id>    CONSTANT IDENTIFIER GLOBAL_VAR INSTANCE_VAR ASSIGN_OP
 %token <val>   INTEGER FLOAT STRING
-%token <node>  DXSTRING
 
+/* define the types for non-term symbols */
 %type <val>  literal numeral
-%type <id>   symbol operation cls_name fname variable
-%type <id>   operator 
+%type <id>   symbol operation cls_name fname variable operator
 
 %type <node> mcall_arg mcall_args ret_args rhs
 %type <node> expr exprs expr_block initial argument arguments lhs method_call command_call
@@ -63,7 +62,7 @@
 %type <node> association associations association_list array
 %type <node> if_elsif else 
 
-/* operator tokens */
+/* operator tokens we're picking up from lexer.l */
 %token UPLUS              /* +   */
 %token UMINUS             /* -   */
 %token POWER              /* **  */
@@ -85,8 +84,6 @@
 %token ARRAY              /* []        */
 %token LPAREN RPAREN      /* ( and  )  */
 
-%token<id> ASSIGN_OP      /* *=, +=, -=, /= */
-
 /* operator associativity */
 %left '*' '/' '|' '&' '^' '%'
 %left AND BITWISE_AND OR BITWISE_OR
@@ -100,8 +97,12 @@
 
 %%
 
-rbprog    : /* boot local tables * { init_locals(); }*/
-          expr_block { parse_tree = $1; } /* then return parse_tree! */
+rbprog    : /* no given src */ { init_locals(); }
+          expr_block {
+            if($2 == 0) { parse_tree = -1; }
+            else { parse_tree = $2; }
+          }
+
 
 expr_block : exprs opt_terms
 
@@ -116,6 +117,7 @@ expr      : mlhs_block SGL_EQUAL rhs
               $1->node_value = $3;
               $$ = $1;
             }
+          | command_call
           | associations { $$ = MK_HASH($1); }
           | RETURN ret_args
             {
@@ -124,13 +126,13 @@ expr      : mlhs_block SGL_EQUAL rhs
               
               $$ = MK_RETURN($2);
             }
-          | command_call
           | argument
 
 
 command_call : operation mcall_arg             { $$ = MK_FCALL($1, $2);    }
              | initial '.' operation mcall_arg { $$ = MK_CALL($1, $3, $4); }
 
+/* useful for if there's multiple args on the right hand side */
 mlhs_block  : multi_begin { $$ = MK_MASSIGN(MK_LIST($1), 0); }
             | multi_begin multi_end
               {
@@ -148,7 +150,11 @@ lhs         : variable               { $$ = assign_variable($1, 0);      }
             | initial '.' CONSTANT   { $$ = assign_attribute($1, $3, 0); }
 
 /* Token -> non-terminal symbol definitions */
-cls_name  : IDENTIFIER { yyerror("Class name must be a constant variable"); }
+cls_name  : IDENTIFIER 
+            { 
+              yyerror("Class name must be a constant variable");
+              YYERROR;
+            }
           | CONSTANT
 
 /* function name */
@@ -190,8 +196,9 @@ argument   : variable SGL_EQUAL argument { $$ = assign_variable($1, $3);        
            | argument '|' argument       { $$ = perform_op($1, '|', 1, $3);        }
            | argument COMP argument      { $$ = perform_op($1, COMP, 1, $3);       }
            | argument DBL_EQUAL argument { $$ = perform_op($1, DBL_EQUAL, 1, $3);  }
-           | initial                     { $$ = $1;                                }
+           | initial opt_newline         { $$ = $1;                                }
 
+/* method call arguments */
 mcall_args : /* empty */ { $$ = 0; }
            | mcall_arg opt_newline
 
@@ -211,6 +218,7 @@ rhs        : arguments
                   $$ = $1;
               }
 
+/* return variable args */
 ret_args  : mcall_args 
           {
             if ($1->flags == NODE_ARRAY && $1->node_next == 0)
@@ -220,10 +228,11 @@ ret_args  : mcall_args
           }
 
 
-/* Array */
+/* Array - only data, without parenthesis */
 array     : /* zero args */ { $$ = 0; }
           | arguments comma_nl
 
+/* an initial form of data */
 initial   : method_call 
           | literal                       { $$ = MK_LITERAL($1);    }
           | initial COLONS cls_name       { $$ = MK_COLONS($1, $3); }
@@ -234,7 +243,7 @@ initial   : method_call
           | RETURN ret_args               { $$ = MK_RETURN($2);     }
           | RETURN LPAREN ret_args RPAREN { $$ = MK_RETURN($3);     }
           | '{' association_list '}'      { $$ = MK_HASH($2);       }
-          | CLASS cls_name
+          | CLASS cls_name opt_newline
             {
               if(mid_method)
                 yyerror("Cannot declare a class inside a method body!");
@@ -244,7 +253,7 @@ initial   : method_call
               lvar_push();
             }
             expr_block
-            END
+            END 
             {
               class_nested--;
               lvar_pop();
@@ -275,7 +284,7 @@ initial   : method_call
             }
             fml_list
             expr_block
-            END
+            END 
             {
               $$ = MK_DEFINITION($2, $4, $5, class_nested ? 0 : 1);
               lvar_pop();
@@ -362,25 +371,19 @@ terms     : term
 
 void init_locals()
 {
-  printf("BOOTING INIT LOCALS\n");
-  lvar_push();
+  printf("[INFO] Parser: Initialize local var table and class reference\n");
+  lvar_push(); 
   MK_CLASSREF();
 }
 
-// calls the bison yyparse fn
-// and return the parse tree
-NODE* parse_file(char *ruby_script)
+// calls the bison yyparse fn and return the parse tree
+NODE* parse_file(char* ruby_script)
 {
   yyin = (int)fopen(ruby_script, "r");
 
   // if yyparse is ok, return the parse tree!
-  if(yyparse() == 0)
-    return parse_tree;
-  
-  printf("yyparse failed\n");
-
-  // failed somewhere, return null!
-  return 0;
+  yyparse();
+  return parse_tree;
 }
 
 NODE* perform_op(NODE* reciever, ID opsymbol, int has_arg, NODE* arg1)
@@ -519,6 +522,8 @@ static void lvar_push()
   lvtable->nonfree = 0;
   lvtable->cnt     = 0;
   lvtable->previous = lvtbl;
+
+  lvtbl = lvtable;
 }
 
 
@@ -529,7 +534,8 @@ static void lvar_pop()
 
   printf("Popping LVAR table\n");
   // set lvtbl to the previous on the stack
-  lvtbl = local_table->previous;
+  //asm("INT $3");
+  lvtbl = lvtbl->previous;
   if(local_table->table)
   {
     printf("local_table has a table!\n");
