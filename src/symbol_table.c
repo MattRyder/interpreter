@@ -80,7 +80,7 @@ ST_ENTRY* find_entry(SYMBOL_TABLE* sym_table, char* key, uint64_t hash_val)
 {
   ST_ENTRY* entry = &sym_table->entries[hash_val];
 
-  while(entry != 0 && !strcmp(entry->key, key))
+  while(entry != 0 && entry->key != 0 && !strcmp(entry->key, key))
     entry = entry->next_entry;
   
   return entry;
@@ -90,8 +90,10 @@ ST_ENTRY* find_entry(SYMBOL_TABLE* sym_table, char* key, uint64_t hash_val)
 // returns a value in the hash table (as given by table_max)
 uint64_t hash(register char* keyvalue, uint32_t table_max)
 {
-  register uint32_t hash_val = 0;
+  register uint64_t hash_val = 0;
   register uint32_t str_char = 0;
+  
+  table_max = (table_max > 0) ? table_max : 1;
 
   // foreach char in string
   // hash_val = hash_val * prime + char

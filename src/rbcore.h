@@ -43,8 +43,6 @@ typedef struct symbol_table {
   struct st_entry* entries;
 } SYMBOL_TABLE;
 
-
-
 // Base ruby data reqd by descendents
 typedef struct rb_base
 {
@@ -72,6 +70,13 @@ typedef struct rb_numeric
   struct rb_base base;
   uint32_t value;
 } RBNumber;
+
+typedef struct rb_array
+{
+  struct rb_base base;
+  uint32_t length;
+  VAL* array_ptr;
+} RBArray;
 
 
 void set_filename(char *filename);

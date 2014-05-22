@@ -257,10 +257,10 @@ FLOATS              [+-]?[0-9]+\.[0-9]*
 {LOGICAL_AND}     { return BITWISE_AND;  }
 {LOGICAL_OR}      { return BITWISE_OR;   }
 
-{CONSTANT}        { yylval.str = yytext; return CONSTANT;       }
-{GLOBAL_VAR}      { yylval.str = yytext; return GLOBAL_VAR;     }
-{INSTANCE_VAR}    { yylval.str = yytext; return INSTANCE_VAR;   }
-{IDENTIFIER}      { yylval.str = yytext; return IDENTIFIER;     }
+{CONSTANT}        { yylval.id = rb_intern(yytext); return CONSTANT;       }
+{GLOBAL_VAR}      { yylval.id = rb_intern(yytext); return GLOBAL_VAR;     }
+{INSTANCE_VAR}    { yylval.id = rb_intern(yytext); return INSTANCE_VAR;   }
+{IDENTIFIER}      { yylval.id = rb_intern(yytext); return IDENTIFIER;     }
 
 "/"               { return '/'; }
 "*"               { return '*'; }

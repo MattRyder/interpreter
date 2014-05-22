@@ -5,9 +5,8 @@ CC   			= clang
 CFLAGS 		= -c -g -o $(BUILD_DIR)/$@ -Wno-int-conversion
 LDFLAGS   = -o $(BUILD_DIR)/$(EXE) # "linker flags", yeah
 
-OBJS 			= parser.tab.o lex.yy.o rbcore.o \
-						gc.o vm.o main.o evaluator.o   \
-						symbol_table.o
+OBJS 			= parser.tab.o lex.yy.o \
+						gc.o vm.o main.o symbol_table.o
 
 .PHONY: all clean
 

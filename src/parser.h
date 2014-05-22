@@ -31,6 +31,9 @@ static NODE* cur_clsref;
 static NODE* mid_method = 0;
 static int class_nested = 0;
 
+// symbol table for the parse:
+SYMBOL_TABLE* symbol_table;
+
 // local variable table struct
 struct local_vtable
 {
@@ -65,3 +68,11 @@ static struct local_vtable *lvtbl;
 #define MK_BLOCK(arg)           create_node(NODE_BLOCK, arg, 0, 0)
 #define MK_NLNODE(node)         create_node(NODE_NEWLINE, 0, 0, node)
 #define MK_MASSIGN(lvar, val)  create_node(NODE_MASGN, lvar, 0, val)
+
+// ID Attributes for when we internalize tokens:
+#define IDATTR_GLOBAL   0x01
+#define IDATTR_CONSTANT 0x02
+#define IDATTR_CLASS    0x03
+#define IDATTR_INSTANCE 0x04
+#define IDATTR_LOCAL    0x05
+#define IDATTR_ATTRSET  0x06

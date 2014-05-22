@@ -82,6 +82,7 @@ void add_heaps()
   if(heap_used == heap_length)
   {
     heap_length += HEAP_INCREMENT;
+    printf("[INFO] New heap length: %d\n", heap_length);
     if(heap_used > 0)
     {
       heap_ptr = (RBValue**)realloc(heap_ptr, sizeof(RBValue) * heap_length);

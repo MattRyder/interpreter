@@ -372,7 +372,13 @@ terms     : term
 void init_locals()
 {
   printf("[INFO] Parser: Initialize local var table and class reference\n");
+  
+  // push a local variable table onto the stack:
   lvar_push(); 
+  
+  // setup the symbol table:
+  symbol_table = create_stable(1); //have the ctr set to DEFAULT_SIZE
+
   MK_CLASSREF();
 }
 
@@ -534,7 +540,6 @@ static void lvar_pop()
 
   printf("Popping LVAR table\n");
   // set lvtbl to the previous on the stack
-  //asm("INT $3");
   lvtbl = lvtbl->previous;
   if(local_table->table)
   {
@@ -550,4 +555,46 @@ static void lvar_pop()
 static void clsref_pop()
 {
   cur_clsref = cur_clsref->node_next;
+}
+
+// translate string literals into their functions from the sym table:
+// similar implementation of 'rb_intern' as seen in MRI:
+ID rb_intern(char* token_name)
+{
+  ID ret_id;
+
+  // try looking it up from the symbol table:
+  if(lookup_value(symbol_table, token_name, &ret_id))
+    return ret_id;
+
+  // check if this is an attribution setter (end with '='):
+  int name_length = strlen(token_name);
+  if(token_name[name_length-1] == '=')
+  {
+    //remake token_name without the equal char
+    char* namebuffer = rballoc_multi(sizeof(char), name_length);
+    strncpy(namebuffer, token_name, name_length-1);
+    namebuffer[name_length-1] = '\0';
+
+    // load up the name in the symtbl:
+    ret_id = rb_intern(namebuffer);
+    ret_id |= IDATTR_ATTRSET;
+  }
+  else if(isupper(token_name[0]))
+  {
+    ret_id |= IDATTR_CONSTANT;
+  }
+  else
+  {
+    ret_id |= IDATTR_LOCAL;
+  }
+
+  printf("INTERNING: %s", token_name);
+
+  insert_entry(symbol_table, strdup(token_name), ret_id);
+  return ret_id;
+  
+  
+
+
 }

@@ -9,7 +9,5 @@ int main(int argc, char **argv)
   vm_opts(argc, argv);
   vm_exec();
 
-
-  printf("Done!\n");
   return 0;
 }

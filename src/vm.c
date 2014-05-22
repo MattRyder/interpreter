@@ -69,6 +69,7 @@ RBClass* RESTORE_CLASS()
  * ***** */
 
 
+/* first point of initialization */
 void vm_init()
 {
   NODE* rstate;
@@ -87,8 +88,6 @@ void vm_init()
     cur_frame->base_node = (NODE*)create_obj();
     cur_frame->base_node->flags = NODE_CONSTREF;
     cur_frame->base_node->Value1.node = (uint32_t)cur_class;
-
-
   }
   POP_TAG();
 
@@ -104,7 +103,7 @@ void vm_opts(int argc, char** argv)
     //process the argv options
     parse_tree = parse_argv(argc, argv);
 
-    if(parse_tree == 0 || parse_tree == 1)
+    if(parse_tree == 0 || (int)parse_tree == 1)
     {
       exit(parse_tree);
     }
@@ -128,11 +127,8 @@ void vm_exec()
   {
     printf("[INFO] About to evaluate AST\n\n");
     result = eval_tree(parse_tree);
-    printf("\n\n%d\n", result);
   }
 
-
-  
 }
 
 NODE* parse_argv(int argc, char **argv)
@@ -171,8 +167,6 @@ NODE* parse_argv(int argc, char **argv)
   return tree;
 }
 
-
-
 // Evaluates a Ruby Node AST and returns the result
 VAL eval_tree(NODE* root_node)
 {
@@ -185,24 +179,42 @@ VAL eval_tree(NODE* root_node)
 
 VAL vm_evaluate_node(NODE* node)
 {
+  // used in calls:
+  uint32_t argc;
+  VAL* argv;
+
   VAL result = 0;
-  printf("NODE LOCATION: 0x%x\n", (uint32_t)node);
-  printf("NODE TYPE:     %d\n", node->flags);
+  printf("LOCATION: 0x%x", (uint32_t)node);
+  printf("\tTYPE: %d \t", node->flags);
 
   switch(node->flags)
   {
     case NODE_LITERAL:
       printf("Evaluating NODE_LITERAL\n");
-      result = (RBNumber*)node->Value1.node;
+      result = ((RBNumber*)node->Value1.node)->value;
       break;
 
     case NODE_CALL:
       printf("Evaluating NODE_CALL\n");
-      
+
       VAL recv = vm_evaluate_node(node->node_firstval);
-      //result = vm_methodcall()
-      //printf("RECIEVER: %d\n", recv->value); 
+      //evaluate_arguments(node->node_arguments, argc, argv);
+
       break;
+
+    case NODE_FCALL:
+      printf("Evaluating NODE_FCALL\n");
+      
+      evaluate_arguments(node->node_arguments, argc, argv);
+      printf("%s", vm_evaluate_node(node->node_arguments));
+      break;
+
+    case NODE_ARRAY:
+      printf("Evaluating NODE_ARRAY\n");
+      // holy toledo batman, this is unsafe!
+      result = vm_evaluate_node(node->node_firstval);
+      break;
+      
 
     case NODE_DEFINITION:
       printf("Evaluating NODE_DEFINITON\n");
@@ -229,22 +241,47 @@ VAL vm_evaluate_node(NODE* node)
 
     case NODE_STRING:
       printf("Evaluating NODE_STRING\n");
-      result = (RBString*)node->Value1.node;
+      result = ((RBString *)node->Value1.node)->ptr;
       break;
 
     case NODE_NEWLINE:
       printf("Evaluating NODE_NEWLINE\n");
       node = node->node_next;
-      //vm_evaluate_node(node);
+      vm_evaluate_node(node);
       break;
 
     default:
-      printf("No fucking idea...\n");
+      printf("Cannot find an eval function for %d\n", node->flags);
       break;
-
   }
 
   return result;
+}
+
+// eval the argv before giving it to a method call
+void evaluate_arguments(NODE* node, uint32_t* argc, VAL* argv)
+{
+  if(!node)
+  {
+    argv = 0;
+    argc = 0;
+    return;
+  }
+
+  argc = node->Value2.length;
+  printf("Trying to extract %d item(s) from node\n", argc);
+
+  // alloc some space for the argv array:
+  argv = rballoc_multi(sizeof(VAL), argc);
+  
+  if(node->flags == NODE_ARRAY)
+  {
+    for(int i = 0; i < argc; i++)
+    {
+      argv[i] = vm_evaluate_node(node->node_head);
+      node = node->node_next; // next in argv list array
+    }
+  }
 }
 
 VAL vm_methodcall(NODE* reciever, NODE* oper, uint32_t argc)

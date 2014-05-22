@@ -46,6 +46,11 @@ typedef struct Node
 #define node_value Value2.node
 
 
+// ARRAY accessors:
+#define node_arrayptr Value1.node
+#define node_arraylen Value2.length
+
+
 // CALL reciever, op, args
 #define node_reciever Value1.node
 #define node_opid Value2.id
